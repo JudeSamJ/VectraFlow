@@ -1,0 +1,1 @@
+{"timestamp": "2026-06-28T06:23:57.117508", "user_id": "user123", "kb_id": "c4fc4007-daee-4c58-818a-840a3dff0a74", "query": "What is John's SSN?", "retrieved_chunk_ids": ["chunk1"], "pii_detected": ["ssn"], "generation_provider": "openai", "final_answer": "The user's SSN is XXX-XX-XXXX."}
