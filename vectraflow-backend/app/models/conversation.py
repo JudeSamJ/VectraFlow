@@ -1,5 +1,4 @@
 import uuid
-<<<<<<< HEAD
 import enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Enum, ForeignKey, Text
@@ -41,23 +40,3 @@ class Message(Base, UUIDMixin, TimestampMixin):
     retrieval_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     conversation = relationship("Conversation", back_populates="messages")
-=======
-
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
-
-from app.models.base import TimestampedBase
-
-
-class Conversation(TimestampedBase):
-    __tablename__ = "conversations"
-
-    knowledge_base_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    title: Mapped[str | None] = mapped_column(String(120), nullable=True)
->>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

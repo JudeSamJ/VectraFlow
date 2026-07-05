@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -29,39 +28,4 @@ export function formatRelativeTime(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
-=======
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
-
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  const value = bytes / Math.pow(1024, i);
-  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-export function formatDate(iso: string, pattern = 'MMM d, yyyy h:mm a'): string {
-  try {
-    return format(parseISO(iso), pattern);
-  } catch {
-    return iso;
-  }
-}
-
-export function formatRelative(iso: string): string {
-  try {
-    return formatDistanceToNow(parseISO(iso), { addSuffix: true });
-  } catch {
-    return iso;
-  }
-}
-
-export function formatMs(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
-
-export function formatNumber(n: number): string {
-  return new Intl.NumberFormat('en-US').format(n);
->>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 }

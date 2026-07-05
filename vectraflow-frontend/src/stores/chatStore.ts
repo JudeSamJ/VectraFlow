@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 
-<<<<<<< HEAD
 export interface Citation {
   id: string;
   index: number;
@@ -52,18 +51,4 @@ export const useChatStore = create<ChatState>(set => ({
     })),
   setAgentMode: on => set({ agentMode: on }),
   clearMessages: () => set({ messages: [], conversationId: null }),
-=======
-interface ChatState {
-  activeKbId: string | null;
-  activeConversationId: string | null;
-  setActiveKbId: (id: string | null) => void;
-  setActiveConversationId: (id: string | null) => void;
-}
-
-export const useChatStore = create<ChatState>((set) => ({
-  activeKbId: null,
-  activeConversationId: null,
-  setActiveKbId: (id) => set({ activeKbId: id }),
-  setActiveConversationId: (id) => set({ activeConversationId: id }),
->>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 }));

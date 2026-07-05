@@ -1,36 +1,27 @@
-# Web framework
-fastapi==0.115.0
-uvicorn[standard]==0.30.0
-python-multipart==0.0.12
+# Core Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.3
+pydantic-settings>=2.1.0
 
-# Database
-sqlalchemy[asyncio]==2.0.35
-alembic==1.13.2
-asyncpg==0.29.0
-pgvector==0.3.2
+# Database & ORM
+SQLAlchemy>=2.0.25
+alembic>=1.13.1
+asyncpg>=0.29.0
 
-<<<<<<< HEAD
 # Clients
 redis>=5.0.1
 pymilvus>=2.4.0
 # minio removed — using boto3 for AWS S3
-=======
-# Cache / Queue
-redis==5.1.0
-celery==5.4.0
->>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
-# Validation
-pydantic==2.9.0
-pydantic[email]==2.9.0
-pydantic-settings==2.5.2
+# Task Queue
+celery>=5.3.6
 
-# Auth
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-bcrypt==4.0.1
+# Auth & Security
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
+cryptography>=42.0.2
 
-<<<<<<< HEAD
 # AI / Embeddings / LLMs
 openai>=1.12.0          # used by GroqLLMProvider (OpenAI-compatible client)
 cohere>=4.45.0          # reranker only (free trial key)
@@ -38,29 +29,27 @@ tiktoken>=0.6.0         # token counting
 httpx>=0.26.0           # TEI embedding HTTP client
 boto3>=1.34.34          # AWS S3
 sentence-transformers>=2.3.1  # local fallback / evaluation utilities
-=======
-# AI providers
-google-generativeai==0.8.3
->>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
-# Document parsing
-pypdf==4.3.1
-python-docx==1.1.2
-markdown-it-py==3.0.0
+# Parsing
+unstructured[pdf,docx,pptx]>=0.12.4
+PyMuPDF>=1.23.0
+python-docx>=1.1.0
+markdown-it-py>=3.0.0
+beautifulsoup4>=4.12.3
+openpyxl>=3.1.2
+pytesseract>=0.3.10
 
-# File type detection
-python-magic==0.4.27
+# Evaluation
+ragas>=0.1.0
 
-# Tokenization
-tiktoken==0.7.0
-
-# Utilities
-aiofiles==24.1.0
-structlog==24.4.0
-httpx==0.27.2
-python-dotenv==1.0.1
+# Observability
+structlog>=24.1.0
+prometheus-client>=0.19.0
+sentry-sdk[fastapi]>=1.40.3
 
 # Testing
-pytest==8.3.3
-pytest-asyncio==0.24.0
-httpx-sse==0.4.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.5
+factory-boy>=3.3.0
+httpx>=0.26.0
+testcontainers>=3.7.1
