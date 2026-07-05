@@ -1,17 +1,29 @@
+<<<<<<< HEAD
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
+=======
+from fastapi import APIRouter, Depends
+from redis.asyncio import Redis
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+
+from app.core.dependencies import oauth2_scheme
 from app.database import get_db
-from app.models.user import User, APIKey
-from app.schemas.user import UserCreate, UserResponse, APIKeyCreate, APIKeyCreatedResponse, APIKeyResponse
-from app.schemas.token import Token
-from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, generate_api_key
-import uuid
+from app.redis_client import get_redis
+from app.schemas.auth import (
+    AccessTokenResponse,
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
+from app.services import auth_service
 
 router = APIRouter()
 
 
+<<<<<<< HEAD
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -50,18 +62,27 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
         "refresh_token": create_refresh_token(user.id),
         "token_type": "bearer"
     }
+=======
+@router.post("/register", response_model=UserResponse, status_code=201)
+async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    user = await auth_service.register(data, db)
+    return user
 
-# Mocked minimal endpoints for api-keys (needs proper auth dependency in real life)
-@router.post("/api-keys", response_model=APIKeyCreatedResponse)
-async def create_api_key(api_key_in: APIKeyCreate, db: AsyncSession = Depends(get_db)):
-    # In a real implementation, get the user from the current token
-    # For scaffolding, we just raise NotImplementedError or hardcode
-    raise HTTPException(status_code=501, detail="Not Implemented")
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
-@router.get("/api-keys", response_model=list[APIKeyResponse])
-async def list_api_keys(db: AsyncSession = Depends(get_db)):
-    raise HTTPException(status_code=501, detail="Not Implemented")
+@router.post("/login", response_model=TokenResponse)
+async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    access_token, refresh_token, expires_in = await auth_service.login(data.email, data.password, db)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token, expires_in=expires_in)
 
-@router.delete("/api-keys/{key_id}")
-async def delete_api_key(key_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    raise HTTPException(status_code=501, detail="Not Implemented")
+
+@router.post("/refresh", response_model=AccessTokenResponse)
+async def refresh(data: RefreshRequest):
+    access_token, expires_in = await auth_service.refresh_access_token(data.refresh_token)
+    return AccessTokenResponse(access_token=access_token, expires_in=expires_in)
+
+
+@router.post("/logout")
+async def logout(token: str = Depends(oauth2_scheme), redis: Redis = Depends(get_redis)):
+    await auth_service.logout(token, redis)
+    return {"detail": "Logged out successfully"}

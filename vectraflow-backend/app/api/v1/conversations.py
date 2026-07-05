@@ -1,4 +1,5 @@
 import uuid
+<<<<<<< HEAD
 from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,10 +11,28 @@ from app.database import get_db
 from app.models.user import User
 from app.models.conversation import Conversation, Message, MessageRole, ConversationStatus
 from app.api.deps import get_current_user
+=======
+
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import get_current_user
+from app.database import get_db
+from app.models.user import User
+from app.schemas.conversation import (
+    ConversationListItem,
+    ConversationListResponse,
+    ConversationResponse,
+    MessageListResponse,
+    MessageResponse,
+)
+from app.services import conversation_service
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
 router = APIRouter()
 
 
+<<<<<<< HEAD
 class ConversationCreate(BaseModel):
     knowledge_base_id: uuid.UUID
     title: Optional[str] = "New Conversation"
@@ -71,11 +90,34 @@ async def list_conversations(
         .order_by(Conversation.created_at.desc())
     )
     return result.scalars().all()
+=======
+@router.get("", response_model=ConversationListResponse)
+async def list_conversations(
+    kb_id: uuid.UUID | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    conversations = await conversation_service.list_for_user(current_user.id, kb_id, db)
+    items = []
+    for conv in conversations:
+        messages = await conversation_service.list_messages(conv.id, db)
+        items.append(
+            ConversationListItem(
+                id=conv.id,
+                title=conv.title,
+                knowledge_base_id=conv.knowledge_base_id,
+                message_count=len(messages),
+                created_at=conv.created_at,
+            )
+        )
+    return ConversationListResponse(items=items, next_cursor=None, total=len(items))
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
 
 @router.get("/{conv_id}", response_model=ConversationResponse)
 async def get_conversation(
     conv_id: uuid.UUID,
+<<<<<<< HEAD
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -132,3 +174,32 @@ async def delete_conversation(
         raise HTTPException(status_code=404, detail="Conversation not found")
     await db.delete(conv)
     await db.commit()
+=======
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await conversation_service.get_or_404(conv_id, current_user.id, db)
+
+
+@router.get("/{conv_id}/messages", response_model=MessageListResponse)
+async def get_messages(
+    conv_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await conversation_service.get_or_404(conv_id, current_user.id, db)
+    messages = await conversation_service.list_messages(conv_id, db)
+    items = [MessageResponse.model_validate(m) for m in messages]
+    return MessageListResponse(items=items, next_cursor=None, total=len(items))
+
+
+@router.delete("/{conv_id}", status_code=204)
+async def delete_conversation(
+    conv_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    conv = await conversation_service.get_or_404(conv_id, current_user.id, db)
+    await conversation_service.delete_conversation(conv, db)
+    return Response(status_code=204)
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

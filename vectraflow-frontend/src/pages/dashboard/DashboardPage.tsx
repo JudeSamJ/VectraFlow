@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Database, FileText, MessageSquare, HardDrive, Plus, ArrowRight } from 'lucide-react';
@@ -152,8 +153,235 @@ export function DashboardPage() {
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{desc}</p>
             </Card>
           ))}
+=======
+import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Database, MessageSquare, Clock, Plus, ArrowRight, FileText } from 'lucide-react';
+import { useAuthStore } from '../../stores/authStore';
+import { listKnowledgeBases } from '../../api/knowledgeBases';
+import { listConversations } from '../../api/conversations';
+import { useChatStore } from '../../stores/chatStore';
+
+export const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const { setActiveKbId, setActiveConversationId } = useChatStore();
+
+  // Queries
+  const { data: kbsData, isLoading: loadingKbs } = useQuery({
+    queryKey: ['kbs'],
+    queryFn: () => listKnowledgeBases(),
+  });
+
+  const { data: conversationsData, isLoading: loadingConversations } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => listConversations(),
+  });
+
+  // Calculate stats
+  const kbsList = kbsData?.items || [];
+  const conversationsList = conversationsData?.items || [];
+
+  const totalKBs = kbsData?.total || kbsList.length;
+  const totalDocs = kbsList.reduce((sum, kb) => sum + (kb.document_count || 0), 0);
+  const totalConversations = conversationsData?.total || conversationsList.length;
+  const readyKBs = kbsList.filter((kb) => kb.status === 'ready').length;
+
+  const greetingMessage = () => {
+    const hr = new Date().getHours();
+    if (hr < 12) return 'Good morning';
+    if (hr < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="page-enter">
+      {/* Header Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            {greetingMessage()},
+          </span>
+          <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>
+            {user?.full_name || 'VectraFlow User'}
+          </h1>
+        </div>
+
+        <div 
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--accent)',
+            color: 'var(--text-on-accent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+          onClick={() => navigate('/settings')}
+        >
+          {user ? getInitials(user.full_name) : 'VF'}
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+        {/* Metric Card 1 */}
+        <div className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Total Knowledge Bases</span>
+          <span style={{ fontSize: '32px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            {loadingKbs ? '...' : totalKBs}
+          </span>
+          <Database size={16} color="var(--accent)" style={{ position: 'absolute', top: '20px', right: '20px' }} />
+        </div>
+
+        {/* Metric Card 2 */}
+        <div className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Total Documents</span>
+          <span style={{ fontSize: '32px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            {loadingKbs ? '...' : totalDocs}
+          </span>
+          <FileText size={16} color="var(--accent)" style={{ position: 'absolute', top: '20px', right: '20px' }} />
+        </div>
+
+        {/* Metric Card 3 */}
+        <div className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Total Conversations</span>
+          <span style={{ fontSize: '32px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            {loadingConversations ? '...' : totalConversations}
+          </span>
+          <MessageSquare size={16} color="var(--accent)" style={{ position: 'absolute', top: '20px', right: '20px' }} />
+        </div>
+
+        {/* Metric Card 4 */}
+        <div className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Ready KBs</span>
+          <span style={{ fontSize: '32px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            {loadingKbs ? '...' : readyKBs}
+          </span>
+          <Clock size={16} color="var(--accent)" style={{ position: 'absolute', top: '20px', right: '20px' }} />
+        </div>
+      </div>
+
+      {/* Grid of Sections */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        {/* Knowledge Bases Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '17px', fontWeight: '600' }}>Your Knowledge Bases</h2>
+            <Link to="/knowledge-bases" style={{ fontSize: '13px', color: 'var(--accent)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>View all</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {loadingKbs ? (
+            <div className="card skeleton" style={{ height: '140px' }} />
+          ) : kbsList.length === 0 ? (
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', gap: '12px' }}>
+              <Database size={32} color="var(--text-muted)" />
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Create your first knowledge base</span>
+              <button className="btn btn-primary" onClick={() => navigate('/knowledge-bases')} style={{ gap: '6px' }}>
+                <Plus size={14} />
+                <span>Create KB</span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {kbsList.slice(0, 4).map((kb) => (
+                <div 
+                  key={kb.id} 
+                  className="card card-interactive" 
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                  onClick={() => navigate(`/knowledge-bases/${kb.id}`)}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)' }}>{kb.name}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {kb.document_count || 0} docs · {formatBytes(kb.storage_bytes || 0)}
+                    </span>
+                  </div>
+                  <span className={`badge badge-${kb.status}`}>{kb.status.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Conversations Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '17px', fontWeight: '600' }}>Recent Conversations</h2>
+            <Link to="/history" style={{ fontSize: '13px', color: 'var(--accent)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>View all</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {loadingConversations ? (
+            <div className="card skeleton" style={{ height: '140px' }} />
+          ) : conversationsList.length === 0 ? (
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', gap: '12px' }}>
+              <MessageSquare size={32} color="var(--text-muted)" />
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Ask your first question</span>
+              <button className="btn btn-primary" onClick={() => navigate('/chat')}>
+                <span>Go to Chat</span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {conversationsList.slice(0, 5).map((conv) => (
+                <div 
+                  key={conv.id} 
+                  className="card card-interactive" 
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                  onClick={() => {
+                    setActiveKbId(conv.kb_id);
+                    setActiveConversationId(conv.id);
+                    navigate('/chat');
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                      {conv.title || 'Untitled conversation'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {conv.kb_name} · {conv.message_count} messages
+                    </span>
+                  </div>
+                  <ArrowRight size={14} color="var(--text-muted)" />
+                </div>
+              ))}
+            </div>
+          )}
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
         </div>
       </div>
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

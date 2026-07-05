@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+<<<<<<< HEAD
 
 export const authApi = {
   login: (email: string, password: string) =>
@@ -11,3 +12,11 @@ export const authApi = {
     apiClient.post('/auth/register', { full_name: name, email, password }),
   logout: () => apiClient.post('/auth/logout'),
 };
+=======
+import type { User } from './types';
+
+export async function register(data: { email: string; password: string; full_name: string }): Promise<User> {
+  const res = await apiClient.post<User>('/auth/register', data);
+  return res.data;
+}
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

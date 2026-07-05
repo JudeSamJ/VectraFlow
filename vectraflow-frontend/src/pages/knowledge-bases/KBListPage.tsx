@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -86,10 +87,160 @@ export function KBListPage() {
                 ))}
               </div>
             </Card>
+=======
+import React, { useState } from 'react';
+import { Plus, Database, FileText, LayoutGrid, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { listKnowledgeBases, createKnowledgeBase } from '../../api/knowledgeBases';
+import { useChatStore } from '../../stores/chatStore';
+
+export const KBListPage: React.FC = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { setActiveKbId } = useChatStore();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+
+  // Fetch KBs
+  const { data: kbsData, isLoading } = useQuery({
+    queryKey: ['kbs'],
+    queryFn: () => listKnowledgeBases(),
+  });
+
+  // Mutation to create KB
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string; description: string }) => createKnowledgeBase(data),
+    onSuccess: (newKb) => {
+      queryClient.invalidateQueries({ queryKey: ['kbs'] });
+      setActiveKbId(newKb.id);
+      navigate(`/knowledge-bases/${newKb.id}`);
+    }
+  });
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    createMutation.mutate({ name, description });
+    setName('');
+    setDescription('');
+    setShowCreateModal(false);
+  };
+
+  const kbsList = kbsData?.items || [];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="page-enter">
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '4px' }}>
+            Knowledge Bases
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+            Configure ingestion sources, parsing logic, and chunk search strategies.
+          </p>
+        </div>
+        <button 
+          className="btn btn-primary" 
+          onClick={() => setShowCreateModal(true)}
+          style={{ gap: '8px' }}
+        >
+          <Plus size={16} /> New Knowledge Base
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="card skeleton" style={{ height: '200px' }} />
+      ) : kbsList.length === 0 ? (
+        <div 
+          className="card" 
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            padding: '48px', 
+            gap: '12px' 
+          }}
+        >
+          <Database size={48} color="var(--text-muted)" />
+          <h3 style={{ fontSize: '17px', fontWeight: '600', color: 'var(--text-primary)' }}>No knowledge bases yet</h3>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            Create one to start uploading and querying your documents.
+          </span>
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)} style={{ marginTop: '8px' }}>
+            Create Knowledge Base
+          </button>
+        </div>
+      ) : (
+        <div 
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+            gap: '20px',
+          }}
+        >
+          {kbsList.map((kb) => (
+            <div 
+              key={kb.id} 
+              className="card card-interactive"
+              onClick={() => {
+                setActiveKbId(kb.id);
+                navigate(`/knowledge-bases/${kb.id}`);
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                cursor: 'pointer'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <Database size={18} color="var(--accent)" />
+                  <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {kb.name}
+                  </span>
+                </div>
+                <span className={`badge badge-${kb.status}`}>
+                  {kb.status.toUpperCase()}
+                </span>
+              </div>
+
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', flex: 1, margin: 0 }}>
+                {kb.description || 'No description provided.'}
+              </p>
+
+              <div 
+                style={{
+                  display: 'flex', 
+                  gap: '16px', 
+                  fontSize: '11px', 
+                  color: 'var(--text-muted)',
+                  borderTop: '1px solid var(--border)',
+                  paddingTop: '12px',
+                  marginTop: '4px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FileText size={12} />
+                  <span>{kb.document_count || 0} documents</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <LayoutGrid size={12} />
+                  <span>{kb.chunk_count || 0} chunks</span>
+                </div>
+              </div>
+            </div>
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
           ))}
         </div>
       )}
 
+<<<<<<< HEAD
       <Modal open={creating} onClose={() => setCreating(false)} title="New Knowledge Base">
         <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Input label="Name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Legal Documents" required />
@@ -112,3 +263,89 @@ export function KBListPage() {
     </div>
   );
 }
+=======
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <form 
+            onSubmit={handleCreate}
+            className="card page-enter"
+            style={{
+              width: '440px',
+              backgroundColor: 'var(--bg-elevated)',
+              border: '1px solid var(--border-strong)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '17px', fontWeight: '600' }}>New Knowledge Base</span>
+              <button 
+                type="button" 
+                className="btn-icon" 
+                onClick={() => setShowCreateModal(false)}
+                style={{ border: 'none', background: 'none', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Name</label>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Legal Contracts"
+                  className="input"
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Description</label>
+                <textarea 
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What is this knowledge base for?"
+                  className="input"
+                  style={{ height: '80px', resize: 'none', padding: '8px 12px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Create KB
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+};
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

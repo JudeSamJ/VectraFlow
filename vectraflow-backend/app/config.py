@@ -1,14 +1,22 @@
+<<<<<<< HEAD
 from typing import Optional
+=======
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # App
     APP_NAME: str = "Synapse RAG API"
+<<<<<<< HEAD
     ENVIRONMENT: str = "production"
     SECRET_KEY: str
+=======
+    ENVIRONMENT: str = "development"
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
     DEBUG: bool = False
+    SECRET_KEY: str
 
+<<<<<<< HEAD
     # Database — Neon serverless Postgres
     DATABASE_URL: str
 
@@ -40,10 +48,16 @@ class Settings(BaseSettings):
     AWS_S3_ENDPOINT_URL: Optional[str] = None
 
     # Auth / JWT
+=======
+    DATABASE_URL: str
+    REDIS_URL: str
+
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+<<<<<<< HEAD
     # Encryption (for per-KB API keys stored in DB)
     ENCRYPTION_KEY: str
 
@@ -98,6 +112,23 @@ class Settings(BaseSettings):
     PROMETHEUS_ENABLED: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
+=======
+    UPLOAD_DIR: str = "./uploads"
+    MAX_UPLOAD_SIZE_MB: int = 50
+
+    GOOGLE_API_KEY: str
+    GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-001"
+    EMBEDDING_DIMENSIONS: int = 768
+    GEMINI_CHAT_MODEL: str = "models/gemini-2.5-flash"
+    GEMINI_MAX_TOKENS: int = 1024
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
+
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
     @property
     def celery_broker(self) -> str:

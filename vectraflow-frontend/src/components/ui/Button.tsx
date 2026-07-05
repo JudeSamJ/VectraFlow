@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { type ButtonHTMLAttributes, forwardRef } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'destructive' | 'icon';
@@ -70,3 +71,27 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
+=======
+import React from 'react';
+
+type Variant = 'primary' | 'ghost' | 'danger';
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+}
+
+export const Button: React.FC<ButtonProps> = ({ variant = 'primary', className = '', children, ...rest }) => {
+  const variantClass = variant === 'primary' ? 'btn-primary' : variant === 'ghost' ? 'btn-ghost' : 'btn-danger';
+  return (
+    <button className={`btn ${variantClass} ${className}`} {...rest}>
+      {children}
+    </button>
+  );
+};
+
+export const IconButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ className = '', children, ...rest }) => (
+  <button className={`btn-icon ${className}`} {...rest}>
+    {children}
+  </button>
+);
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import os
 import uuid
 import asyncio
@@ -6,10 +7,20 @@ from datetime import datetime, timezone
 
 from app.celery_worker import celery_app
 from app.dependencies import get_ingestion_pipeline
+=======
+import asyncio
+
+import structlog
+
+from app.celery_app import celery_app
+from app.database import async_session_maker
+from app.services.ingestion_service import ingest_document
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
 logger = structlog.get_logger(__name__)
 
 
+<<<<<<< HEAD
 # ─────────────────────────────────────────────────────────────
 # Lightweight data containers (no SQLAlchemy ORM dependency)
 # ─────────────────────────────────────────────────────────────
@@ -214,3 +225,22 @@ def process_document_task(
                 os.remove(temp_file_path)
             except OSError as e:
                 logger.warning("temp_file_cleanup_failed", error=str(e), path=temp_file_path)
+=======
+@celery_app.task(
+    bind=True,
+    max_retries=3,
+    soft_time_limit=300,
+    time_limit=360,
+)
+def ingest_document_task(self, document_id: str) -> dict:
+    async def _run():
+        async with async_session_maker() as db:
+            await ingest_document(document_id, db)
+
+    try:
+        asyncio.run(_run())
+        return {"document_id": document_id, "status": "ready"}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("ingest_document_task_failed", document_id=document_id, error=str(exc))
+        raise self.retry(exc=exc, countdown=2**self.request.retries)
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

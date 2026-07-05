@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { type HTMLAttributes } from 'react';
 
 type BadgeVariant = 'ready' | 'indexing' | 'error' | 'warning' | 'pending' | 'high' | 'medium' | 'low';
@@ -41,3 +42,16 @@ export function Badge({ variant = 'pending', style, children, ...props }: BadgeP
     </span>
   );
 }
+=======
+import React from 'react';
+
+interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  variant?: 'ready' | 'indexing' | 'pending' | 'failed' | 'neutral';
+}
+
+export const Badge: React.FC<BadgeProps> = ({ variant = 'neutral', className = '', children, ...rest }) => (
+  <span className={`badge badge-${variant} ${className}`} {...rest}>
+    {children}
+  </span>
+);
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

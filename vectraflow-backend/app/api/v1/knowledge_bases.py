@@ -1,4 +1,5 @@
 import uuid
+<<<<<<< HEAD
 import re
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,10 +12,28 @@ from app.database import get_db
 from app.models.user import User
 from app.models.knowledge_base import KnowledgeBase, IndexStatus
 from app.api.deps import get_current_user
+=======
+
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import get_current_user
+from app.database import get_db
+from app.models.user import User
+from app.schemas.knowledge_base import (
+    CreateKnowledgeBaseRequest,
+    KnowledgeBaseListResponse,
+    KnowledgeBaseResponse,
+    KnowledgeBaseStatsResponse,
+    UpdateKnowledgeBaseRequest,
+)
+from app.services import knowledge_base_service
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
 
 router = APIRouter()
 
 
+<<<<<<< HEAD
 class KBCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -221,3 +240,60 @@ async def kb_health(
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     return {"status": "ok", "index_status": kb.index_status, "collection": kb.milvus_collection_name}
+=======
+@router.post("", response_model=KnowledgeBaseResponse, status_code=201)
+async def create_kb(
+    data: CreateKnowledgeBaseRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await knowledge_base_service.create(data, current_user.id, db)
+
+
+@router.get("", response_model=KnowledgeBaseListResponse)
+async def list_kbs(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    kbs = await knowledge_base_service.list_for_owner(current_user.id, db)
+    return KnowledgeBaseListResponse(items=kbs, next_cursor=None, total=len(kbs))
+
+
+@router.get("/{kb_id}", response_model=KnowledgeBaseResponse)
+async def get_kb(
+    kb_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await knowledge_base_service.get_or_404(kb_id, current_user.id, db)
+
+
+@router.put("/{kb_id}", response_model=KnowledgeBaseResponse)
+async def update_kb(
+    kb_id: uuid.UUID,
+    data: UpdateKnowledgeBaseRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    kb = await knowledge_base_service.get_or_404(kb_id, current_user.id, db)
+    return await knowledge_base_service.update(kb, data, db)
+
+
+@router.delete("/{kb_id}", status_code=204)
+async def delete_kb(
+    kb_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    kb = await knowledge_base_service.get_or_404(kb_id, current_user.id, db)
+    await knowledge_base_service.delete(kb, db)
+    return Response(status_code=204)
+
+
+@router.get("/{kb_id}/stats", response_model=KnowledgeBaseStatsResponse)
+async def get_kb_stats(
+    kb_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    kb = await knowledge_base_service.get_or_404(kb_id, current_user.id, db)
+    stats = await knowledge_base_service.get_stats(kb, db)
+    return KnowledgeBaseStatsResponse(**stats)
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f

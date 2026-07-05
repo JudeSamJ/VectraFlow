@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState } from 'react';
 import { Search, Database } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -156,3 +157,244 @@ export function RetrievalPage() {
     </div>
   );
 }
+=======
+import React, { useState } from 'react';
+import { Sliders, Play, Trash2, Clock } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useChatStore } from '../../stores/chatStore';
+import { listKnowledgeBases } from '../../api/knowledgeBases';
+import type { KnowledgeBase } from '../../api/types';
+
+export const RetrievalPage: React.FC = () => {
+  const { activeKbId, setActiveKbId } = useChatStore();
+
+  const [query, setQuery] = useState('');
+  const [topK, setTopK] = useState(5);
+  const [scoreThreshold, setScoreThreshold] = useState(0.0);
+  const [results, setResults] = useState<any[]>([]);
+  const [latency, setLatency] = useState<number | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  // Fetch KBs list
+  const { data: kbsData } = useQuery({
+    queryKey: ['kbs'],
+    queryFn: () => listKnowledgeBases(),
+  });
+
+  const kbsList = kbsData?.items || [];
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeKbId || !query.trim()) return;
+
+    setSearching(true);
+    // Mock querying backend dense search endpoint: POST /knowledge-bases/:kbId/retrieve
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    
+    setLatency(127);
+    setResults([
+      {
+        chunk_id: 'ch-101',
+        text: 'The liability aggregate cap is $1,000,000 for all related partner intellectual property infringement claims under Section 14.',
+        score: 0.87,
+        document_id: 'doc-1',
+        document_filename: 'acme_master_agreement_v2.pdf',
+        page_number: 14,
+        chunk_index: 24,
+        token_count: 82
+      },
+      {
+        chunk_id: 'ch-102',
+        text: 'Standard non-disclosure terms limit disclosure period to 5 years starting from the date of master agreement signature.',
+        score: 0.74,
+        document_id: 'doc-2',
+        document_filename: 'beta_general_terms_2025.pdf',
+        page_number: 3,
+        chunk_index: 5,
+        token_count: 65
+      }
+    ].filter(r => r.score >= scoreThreshold).slice(0, topK));
+    setSearching(false);
+  };
+
+  const handleClear = () => {
+    setQuery('');
+    setResults([]);
+    setLatency(null);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="page-enter">
+      {/* Header */}
+      <div>
+        <h1 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '4px' }}>
+          Retrieval Playground
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+          Query your vector partition index directly to audit retrieved chunks without LLM synthesis.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '24px', alignItems: 'start' }}>
+        {/* Left Form controls */}
+        <form onSubmit={handleSearch} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+            <Sliders size={16} color="var(--accent)" />
+            <span style={{ fontSize: '14px', fontWeight: '600' }}>Search Parameters</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* KB Selector */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Target Knowledge Base</label>
+              <select 
+                value={activeKbId || ''} 
+                onChange={(e) => setActiveKbId(e.target.value)} 
+                className="input"
+                style={{ width: '100%' }}
+              >
+                <option value="">Choose Knowledge Base</option>
+                {kbsList.map((kb: KnowledgeBase) => (
+                  <option key={kb.id} value={kb.id}>{kb.name} ({kb.status.toUpperCase()})</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Query */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Query Text</label>
+              <textarea
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Enter a search query..."
+                className="input"
+                style={{ height: '80px', minHeight: '80px', padding: '8px 12px', resize: 'none', fontSize: '14px' }}
+              />
+            </div>
+
+            {/* Top K */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Top K</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{topK}</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={topK}
+                onChange={(e) => setTopK(parseInt(e.target.value))}
+                style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+            </div>
+
+            {/* Score Threshold */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Score Threshold</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{scoreThreshold.toFixed(2)}</span>
+              </div>
+              <input
+                type="range"
+                min="0.0"
+                max="1.0"
+                step="0.05"
+                value={scoreThreshold}
+                onChange={(e) => setScoreThreshold(parseFloat(e.target.value))}
+                style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              style={{ flex: 1, gap: '6px' }}
+              onClick={handleClear}
+            >
+              <Trash2 size={14} />
+              <span>Clear</span>
+            </button>
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              style={{ flex: 1, gap: '6px' }}
+              disabled={!activeKbId || !query.trim() || searching}
+            >
+              <Play size={14} fill="var(--text-on-accent)" />
+              <span>Search</span>
+            </button>
+          </div>
+        </form>
+
+        {/* Right Results Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {results.length === 0 ? (
+            <div className="card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              No results — try a different query or lower the score threshold
+            </div>
+          ) : (
+            <>
+              {/* Metrics header */}
+              {latency !== null && (
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  <Clock size={14} color="var(--accent)" />
+                  <span>{results.length} results found in {latency}ms</span>
+                </div>
+              )}
+
+              {/* Result cards list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {results.map((res) => (
+                  <div key={res.chunk_id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
+                    
+                    {/* Score bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Score</span>
+                      <div style={{ flex: 1, height: '8px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ height: '100%', width: `${res.score * 100}%`, backgroundColor: 'var(--accent)' }} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--accent)' }}>{res.score.toFixed(2)}</span>
+                    </div>
+
+                    {/* Monospace content */}
+                    <pre 
+                      style={{
+                        margin: 0,
+                        fontSize: '13px',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap',
+                        color: 'var(--text-secondary)',
+                        backgroundColor: 'rgba(255,255,255,0.01)',
+                        padding: '12px',
+                        borderRadius: 'var(--radius-md)',
+                        maxHeight: '200px',
+                        overflowY: 'auto'
+                      }}
+                    >
+                      {res.text}
+                    </pre>
+
+                    {/* Footer metadata */}
+                    <div style={{ display: 'flex', gap: '6px', fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
+                      <span>{res.document_filename}</span>
+                      <span>·</span>
+                      <span>Page {res.page_number || '—'}</span>
+                      <span>·</span>
+                      <span>Index {res.chunk_index}</span>
+                      <span>·</span>
+                      <span>{res.token_count} tokens</span>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+>>>>>>> 36515d09bd756a4bdcea6bdae0916842b2e73b8f
