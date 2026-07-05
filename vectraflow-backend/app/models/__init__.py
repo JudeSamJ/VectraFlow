@@ -7,6 +7,7 @@ from .embedding_provider import EmbeddingProvider, EmbeddingProviderType
 from .llm_provider import LLMProvider, LLMProviderType
 from .access_grant import AccessGrant, PrincipalType, AccessScope, AccessPermission
 from .pii_policy import PIIPolicy, PIIAction
+from .conversation import Conversation, Message, ConversationStatus, MessageRole
 
 __all__ = [
     "Base",
@@ -32,4 +33,8 @@ __all__ = [
     "AccessPermission",
     "PIIPolicy",
     "PIIAction",
+    "Conversation",
+    "Message",
+    "ConversationStatus",
+    "MessageRole",
 ]

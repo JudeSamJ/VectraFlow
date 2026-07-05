@@ -80,12 +80,37 @@ class MilvusIndexManager:
             is_currents
         ]
         
-        # Sparse vector is optional
-        if sparse_vectors and len(collection.schema.fields) > 11:
-            data.append(sparse_vectors)
-            
+        # Sparse vector: include if schema has the field
+        has_sparse = any(f.name == "sparse_vector" for f in collection.schema.fields)
+        if has_sparse:
+            if sparse_vectors and len(sparse_vectors) == len(chunks):
+                data.append(sparse_vectors)
+            else:
+                # Placeholder empty sparse vectors (all-zeros dict representation)
+                data.append([{0: 0.0} for _ in chunks])
+
         collection.insert(data)
         collection.flush()
+
+        # Create indexes if they don't exist yet, then load
+        existing_indexes = {idx.field_name for idx in collection.indexes}
+
+        if "dense_vector" not in existing_indexes:
+            collection.create_index(
+                field_name="dense_vector",
+                index_params={"index_type": "AUTOINDEX", "metric_type": "COSINE", "params": {}},
+            )
+            logger.info("dense_index_created", collection=collection_name)
+
+        has_sparse = any(f.name == "sparse_vector" for f in collection.schema.fields)
+        if has_sparse and "sparse_vector" not in existing_indexes:
+            collection.create_index(
+                field_name="sparse_vector",
+                index_params={"index_type": "SPARSE_INVERTED_INDEX", "metric_type": "IP", "params": {"drop_ratio_build": 0.2}},
+            )
+            logger.info("sparse_index_created", collection=collection_name)
+
+        collection.load()
         logger.info("chunks_upserted_to_milvus", collection=collection_name, chunk_count=len(chunks))
 
     async def delete_by_document(self, collection_name: str, document_id: uuid.UUID) -> None:

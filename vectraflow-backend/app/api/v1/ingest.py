@@ -6,24 +6,10 @@ import os
 import aiofiles
 from typing import Dict, Any
 
-from app.tasks.ingestion_tasks import process_document_task
+from app.tasks.ingestion_tasks import process_document_task, MockKnowledgeBaseDoc, MockKnowledgeBase
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
-
-# We need a mock object that matches the KnowledgeBaseDocument expected by IngestionPipeline
-class MockKnowledgeBaseDoc:
-    def __init__(self, id: uuid.UUID, collection_name: str, file_name: str, file_size: int, content_type: str):
-        self.id = id
-        self.milvus_collection_name = collection_name
-        self.file_name = file_name
-        self.file_size = file_size
-        self.content_type = content_type
-        
-class MockKnowledgeBase:
-    def __init__(self, collection_name: str):
-        self.milvus_collection_name = collection_name
-        self.embedding_dimensions = 1536
 
 @router.post("/ingest")
 async def ingest_file(

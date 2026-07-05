@@ -1,0 +1,48 @@
+:root {
+  /* Colors */
+  --bg-primary: #0D0D0D;
+  --bg-surface: #141414;
+  --bg-elevated: #1A1A1A;
+  --border-default: rgba(255, 255, 255, 0.07);
+  --border-emphasis: rgba(255, 255, 255, 0.12);
+
+  --accent: #00C07A;
+  --accent-glow: rgba(0, 192, 122, 0.15);
+  --accent-dark: #009960;
+
+  --text-primary: #F2F2F2;
+  --text-secondary: #9A9A9A;
+  --text-muted: #5A5A5A;
+  --text-on-accent: #001A0D;
+
+  --status-high: #FF4D4D;
+  --status-medium: #FFA043;
+  --status-low: #00C07A;
+  --status-pending: #7C6DFF;
+
+  --focus-ring: 0 0 0 2px rgba(0, 192, 122, 0.5);
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 17px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --sidebar-collapsed: 64px;
+  --topnav-height: 56px;
+  --max-content: 1280px;
+  --chat-panel-width: 420px;
+}

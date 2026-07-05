@@ -4,6 +4,10 @@ from app.rag.embeddings.base_provider import BaseLLMProvider
 
 logger = structlog.get_logger(__name__)
 
+class GuardrailException(Exception):
+    """Raised when a query is blocked by the guardrail filter."""
+    pass
+
 @dataclass
 class GuardrailVerdict:
     is_safe: bool
@@ -32,3 +36,10 @@ class GuardrailFilter:
             return GuardrailVerdict(is_safe=False, reason="Detected data exfiltration attempt.")
             
         return GuardrailVerdict(is_safe=True)
+
+    async def validate(self, query: str) -> bool:
+        """Alias expected by RAGOrchestrator. Returns True if query is safe."""
+        verdict = await self.check(query)
+        if not verdict.is_safe:
+            raise GuardrailException(verdict.reason)
+        return True
