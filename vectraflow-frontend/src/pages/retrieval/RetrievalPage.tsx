@@ -57,13 +57,13 @@ export function RetrievalPage() {
             value={kbId}
             onChange={e => setActiveKB(e.target.value || null)}
             style={{
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 'var(--radius-md)', color: kbId ? 'var(--text-primary)' : 'var(--text-muted)',
+              background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 'var(--radius-md)', color: '#f2f2f2',
               padding: '6px 10px', fontSize: 'var(--text-sm)', outline: 'none', cursor: 'pointer', minWidth: 200,
             }}
           >
-            <option value="">Select a knowledge base…</option>
-            {kbs.map(kb => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
+            <option value="" style={{ background: '#1a1a1a', color: '#9a9a9a' }}>Select a knowledge base…</option>
+            {kbs.map(kb => <option key={kb.id} value={kb.id} style={{ background: '#1a1a1a', color: '#f2f2f2' }}>{kb.name}</option>)}
           </select>
         </div>
       </div>
@@ -85,9 +85,9 @@ export function RetrievalPage() {
               <select
                 value={strategy}
                 onChange={e => setStrategy(e.target.value as RetrievalStrategy)}
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)', padding: '10px 12px', height: 38, fontSize: 'var(--text-sm)', outline: 'none' }}
+                style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-md)', color: '#f2f2f2', padding: '10px 12px', height: 38, fontSize: 'var(--text-sm)', outline: 'none' }}
               >
-                {strategies.map(s => <option key={s} value={s}>{s}</option>)}
+                {strategies.map(s => <option key={s} value={s} style={{ background: '#1a1a1a', color: '#f2f2f2' }}>{s}</option>)}
               </select>
             </div>
 

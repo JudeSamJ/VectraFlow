@@ -68,7 +68,7 @@ async def list_conversations(
     result = await db.execute(
         select(Conversation)
         .where(Conversation.owner_id == current_user.id)
-        .order_by(Conversation.created_at.desc())
+        .order_by(Conversation.updated_at.desc())
     )
     return result.scalars().all()
 

@@ -29,6 +29,7 @@ interface ChatState {
   finalizeMessage: (id: string, citations: Citation[]) => void;
   setAgentMode: (on: boolean) => void;
   clearMessages: () => void;
+  restoreConversation: (conversationId: string, messages: Message[]) => void;
 }
 
 export const useChatStore = create<ChatState>(set => ({
@@ -51,4 +52,5 @@ export const useChatStore = create<ChatState>(set => ({
     })),
   setAgentMode: on => set({ agentMode: on }),
   clearMessages: () => set({ messages: [], conversationId: null }),
+  restoreConversation: (conversationId, messages) => set({ conversationId, messages }),
 }));

@@ -28,7 +28,7 @@ export function ConversationsPage() {
 
   const openConversation = (conv: ConversationItem) => {
     setActiveKB(conv.knowledge_base_id);
-    navigate('/chat');
+    navigate('/chat', { state: { conversationId: conv.id, kbId: conv.knowledge_base_id } });
   };
 
   return (

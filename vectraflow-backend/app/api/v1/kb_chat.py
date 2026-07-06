@@ -180,6 +180,7 @@ async def sync_chat(
 
     # Persist messages if conversation exists
     if conv:
+        from datetime import datetime, timezone
         db.add(Message(conversation_id=conv.id, role=MessageRole.user, content=req.query))
         db.add(Message(
             conversation_id=conv.id,
@@ -187,6 +188,7 @@ async def sync_chat(
             content=answer,
             citations={"items": citations},
         ))
+        conv.updated_at = datetime.now(timezone.utc)
         await db.commit()
 
     return SyncChatResponse(

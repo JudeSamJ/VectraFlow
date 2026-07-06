@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, Bot, Database, Plus } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../api/client';
 import { kbApi } from '../../api/knowledgeBases';
+import { chatApi } from '../../api/chat';
 import { useChatStore } from '../../stores/chatStore';
 import { useKBStore } from '../../stores/kbStore';
 import { MessageBubble } from '../../components/chat/MessageBubble';
@@ -12,13 +14,16 @@ import type { Citation } from '../../stores/chatStore';
 
 export function ChatPage() {
   const { activeKBId, setActiveKB } = useKBStore();
-  const { messages, agentMode, addMessage, updateStreamingMessage, finalizeMessage, setAgentMode, clearMessages } = useChatStore();
+  const { messages, agentMode, addMessage, updateStreamingMessage, finalizeMessage, setAgentMode, clearMessages, restoreConversation } = useChatStore();
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const restoringFromNavRef = useRef(false);
   const qc = useQueryClient();
+  const location = useLocation();
 
   const { data: kbData } = useQuery({
     queryKey: ['knowledge-bases'],
@@ -26,8 +31,36 @@ export function ChatPage() {
   });
   const kbs = Array.isArray(kbData) ? kbData : [];
 
-  // Reset conversation when KB changes
+  // Restore conversation when navigated from history page
   useEffect(() => {
+    const state = location.state as { conversationId?: string; kbId?: string } | null;
+    if (!state?.conversationId) return;
+    const { conversationId: convId, kbId } = state;
+    restoringFromNavRef.current = true;
+    if (kbId) setActiveKB(kbId);
+    clearMessages();
+    setRestoring(true);
+    window.history.replaceState({}, '');
+    chatApi.getMessages(convId).then(res => {
+      const restored = res.data
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          citations: m.citations?.items ?? [],
+        }));
+      restoreConversation(convId, restored);
+      setConversationId(convId);
+    }).catch(() => {}).finally(() => {
+      setRestoring(false);
+      restoringFromNavRef.current = false;
+    });
+  }, []);
+
+  // Reset conversation when KB changes — skip during nav-restore to avoid clearing the loading state
+  useEffect(() => {
+    if (restoringFromNavRef.current) return;
     setConversationId(null);
     clearMessages();
   }, [activeKBId]);
@@ -101,10 +134,10 @@ export function ChatPage() {
             value={activeKBId ?? ''}
             onChange={e => setActiveKB(e.target.value || null)}
             style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: '#1a1a1a',
+              border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: 'var(--radius-md)',
-              color: activeKBId ? 'var(--text-primary)' : 'var(--text-muted)',
+              color: '#f2f2f2',
               padding: '6px 10px',
               fontSize: 'var(--text-sm)',
               outline: 'none',
@@ -112,9 +145,9 @@ export function ChatPage() {
               minWidth: 220,
             }}
           >
-            <option value="">Select a knowledge base…</option>
+            <option value="" style={{ background: '#1a1a1a', color: '#9a9a9a' }}>Select a knowledge base…</option>
             {kbs.map(kb => (
-              <option key={kb.id} value={kb.id}>{kb.name}</option>
+              <option key={kb.id} value={kb.id} style={{ background: '#1a1a1a', color: '#f2f2f2' }}>{kb.name}</option>
             ))}
           </select>
           {messages.length > 0 && (
@@ -131,7 +164,12 @@ export function ChatPage() {
 
         {/* Messages */}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 16 }}>
-          {!messages.length && (
+          {restoring && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
+              Loading conversation…
+            </div>
+          )}
+          {!restoring && !messages.length && (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, paddingTop: 80 }}>
               <div style={{ width: 48, height: 48, background: 'rgba(0,192,122,0.1)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Sparkles size={24} color="var(--accent)" />
