@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Synapse RAG API"
+    APP_NAME: str = "VectraFlow RAG API"
     ENVIRONMENT: str = "production"
     SECRET_KEY: str
     DEBUG: bool = False
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str
     AWS_REGION: str = "us-east-1"
-    AWS_S3_BUCKET: str = "synapse-documents"
+    AWS_S3_BUCKET: str = "vectraflow-documents"
     AWS_S3_ENDPOINT_URL: Optional[str] = None
 
     # Auth / JWT
@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,https://vectraflow-frontend.vercel.app"
+    CORS_ALLOWED_ORIGIN_REGEX: str = r"https://.*\.vercel\.app$"
 
     # Encryption
     ENCRYPTION_KEY: str
