@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { Document, Chunk } from "./types";
+import type { Document, Chunk, PaginatedResponse } from "./types";
 
 export const documentsApi = {
   list: (kbId: string) =>

@@ -4,7 +4,6 @@ import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { analyticsApi } from "../../api/analytics";
 import { apiClient } from "../../api/client";
 import { formatRelativeTime } from "../../utils/formatters";
 import type { CircuitBreakerState } from "../../api/types";
