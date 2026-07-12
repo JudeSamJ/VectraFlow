@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+import re
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import Response
 from app.config import settings
 from app.api.v1.router import api_router
 from app.core.telemetry import setup_telemetry
@@ -25,6 +27,33 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def add_cors_headers(request: Request, call_next):
+        origin = request.headers.get("origin")
+        if origin:
+            normalized_origin = origin.rstrip("/")
+            is_allowed = normalized_origin in allowed_origins or bool(
+                re.match(settings.CORS_ALLOWED_ORIGIN_REGEX, normalized_origin)
+            )
+            if is_allowed:
+                if request.method == "OPTIONS":
+                    response = Response(status_code=200)
+                    response.headers["Access-Control-Allow-Origin"] = normalized_origin
+                    response.headers["Access-Control-Allow-Credentials"] = "true"
+                    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+                    requested_headers = request.headers.get("access-control-request-headers")
+                    response.headers["Access-Control-Allow-Headers"] = requested_headers or "*"
+                    response.headers["Vary"] = "Origin"
+                    return response
+
+                response = await call_next(request)
+                response.headers["Access-Control-Allow-Origin"] = normalized_origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Vary"] = "Origin"
+                return response
+
+        return await call_next(request)
 
     setup_telemetry(app)
     app.include_router(api_router, prefix="/api/v1")

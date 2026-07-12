@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # CORS
-    CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,https://vectraflow-frontend.vercel.app"
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,https://vectraflow-frontend.vercel.app,https://vectraflow-frontend-git-main-judes-projects-f6c1a54d.vercel.app/,https://vectraflow-frontend-8ncwqny78-judes-projects-f6c1a54d.vercel.app/"
     CORS_ALLOWED_ORIGIN_REGEX: str = r"https://.*\.vercel\.app$"
 
     # Encryption
