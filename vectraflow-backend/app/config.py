@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # CORS
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,https://vectraflow-frontend.vercel.app"
+
     # Encryption
     ENCRYPTION_KEY: str
 
