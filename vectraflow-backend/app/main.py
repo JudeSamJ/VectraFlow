@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.v1.router import api_router
 from app.core.telemetry import setup_telemetry
+import requests
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -31,6 +32,13 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health_check():
         return {"status": "ok"}
+    
+    @app.get("/my-ip")
+    def my_ip():
+        ip = requests.get("https://api.ipify.org").text
+        return {
+        "render_outbound_ip": ip
+        }
         
     return app
 
