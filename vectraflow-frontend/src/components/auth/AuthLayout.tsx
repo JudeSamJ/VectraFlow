@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { MessageSquareText, Quote, Database } from 'lucide-react';
+import { MessageSquareText, Quote, Database, ShieldCheck } from 'lucide-react';
 import { AnimatedBackground } from './AnimatedBackground';
 
 interface AuthLayoutProps {
@@ -9,66 +9,96 @@ interface AuthLayoutProps {
   footer: ReactNode;
 }
 
-const pills = [
-  { icon: MessageSquareText, label: 'Retrieval-augmented chat' },
-  { icon: Quote, label: 'Citation tracing' },
-  { icon: Database, label: 'Multi-KB workspaces' },
+const features = [
+  { icon: MessageSquareText, label: 'Chat with your documents in plain language' },
+  { icon: Quote, label: 'Every answer traces back to a real citation' },
+  { icon: Database, label: 'Organize sources into separate knowledge bases' },
+  { icon: ShieldCheck, label: 'PII detection and audit logging built in' },
 ];
 
 export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <AnimatedBackground />
+    <div style={{ minHeight: '100vh', display: 'flex' }}>
+      {/* Left — brand / explainer panel */}
+      <div
+        className="auth-left-panel"
+        style={{
+          position: 'relative',
+          flex: '0 0 44%',
+          minHeight: '100vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '48px 56px',
+        }}
+      >
+        <AnimatedBackground position="absolute" />
 
-      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              width: 52, height: 52, background: 'var(--accent)', borderRadius: 14,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              marginBottom: 18, animation: 'logoGlow 3s ease-in-out infinite',
+              width: 36, height: 36, background: 'var(--accent)', borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            <span style={{ color: 'var(--text-on-accent)', fontSize: 26, fontWeight: 700 }}>V</span>
+            <span style={{ color: 'var(--text-on-accent)', fontSize: 18, fontWeight: 700 }}>V</span>
           </div>
-          <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: '-0.01em' }}>{title}</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginTop: 8 }}>{subtitle}</p>
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>VectraFlow</span>
         </div>
 
-        <div
-          style={{
-            background: 'rgba(20,20,20,0.72)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid var(--border-emphasis)',
-            borderRadius: 'var(--radius-xl)',
-            padding: 32,
-            boxShadow: '0 24px 60px -20px rgba(0,0,0,0.6)',
-            animation: 'cardEnter 0.4s ease-out',
-          }}
-        >
-          {children}
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 460 }}>
+          <h1 style={{ fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+            Your documents,<br />ready to answer.
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-base)', marginTop: 16, lineHeight: 1.6 }}>
+            Upload PDFs, docs, and notes — VectraFlow turns them into a knowledge base you can chat with,
+            with every answer backed by a real citation.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 32 }}>
+            {features.map(({ icon: Icon, label }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 26, height: 26, borderRadius: 'var(--radius-sm)', flexShrink: 0,
+                    background: 'rgba(0,192,122,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Icon size={13} color="var(--accent)" />
+                </div>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: 22, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-          {footer}
+        <p style={{ position: 'relative', zIndex: 1, fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+          © {new Date().getFullYear()} VectraFlow. All rights reserved.
         </p>
+      </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 28 }}>
-          {pills.map(({ icon: Icon, label }) => (
-            <div
-              key={label}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-full)', padding: '6px 12px',
-                fontSize: 'var(--text-xs)', color: 'var(--text-muted)',
-              }}
-            >
-              <Icon size={12} color="var(--accent)" />
-              {label}
-            </div>
-          ))}
+      {/* Right — form */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          background: 'var(--bg-primary)',
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: 400, animation: 'cardEnter 0.4s ease-out' }}>
+          <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: '-0.01em' }}>{title}</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginTop: 6, marginBottom: 32 }}>{subtitle}</p>
+
+          {children}
+
+          <p style={{ textAlign: 'center', marginTop: 24, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+            {footer}
+          </p>
         </div>
       </div>
     </div>

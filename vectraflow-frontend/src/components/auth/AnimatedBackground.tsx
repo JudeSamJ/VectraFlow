@@ -1,9 +1,14 @@
-export function AnimatedBackground() {
+interface AnimatedBackgroundProps {
+  /** 'fixed' fills the viewport; 'absolute' fills its positioned parent (e.g. a side panel). */
+  position?: 'fixed' | 'absolute';
+}
+
+export function AnimatedBackground({ position = 'fixed' }: AnimatedBackgroundProps) {
   return (
     <div
       aria-hidden
       style={{
-        position: 'fixed',
+        position,
         inset: 0,
         overflow: 'hidden',
         background: 'var(--bg-primary)',

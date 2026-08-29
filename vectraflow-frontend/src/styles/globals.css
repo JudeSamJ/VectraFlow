@@ -52,3 +52,14 @@ input, textarea, select {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.18);
 }
+
+/* Auth pages: the brand/explainer panel only fits alongside the form on
+   wider screens — below that, the form alone should have the full width.
+   !important is needed here specifically because AuthLayout sets
+   display:flex inline (for the panel's own internal layout), which an
+   external stylesheet rule can otherwise never override. */
+@media (max-width: 860px) {
+  .auth-left-panel {
+    display: none !important;
+  }
+}
