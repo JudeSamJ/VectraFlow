@@ -31,6 +31,7 @@ from app.rag.pipeline.rag_orchestrator import RAGOrchestrator
 from app.rag.retrieval.retrieval_engine import RetrievalEngine
 from app.rag.indexing.milvus_index_manager import MilvusIndexManager
 from app.services.capacity_service import total_storage_bytes
+from app.core.audit import record_audit_log
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -204,6 +205,15 @@ async def sync_chat(
         ))
         conv.updated_at = datetime.now(timezone.utc)
         await db.commit()
+
+    await record_audit_log(
+        action="chat.query",
+        user_id=current_user.id,
+        knowledge_base_id=kb_id,
+        resource_type="conversation",
+        resource_id=str(conv.id) if conv else None,
+        detail={"query": req.query[:500]},
+    )
 
     return SyncChatResponse(
         answer=answer,
@@ -397,6 +407,15 @@ async def delete_document(
             error=str(exc),
         )
 
+    await record_audit_log(
+        action="document.delete",
+        user_id=current_user.id,
+        knowledge_base_id=kb_id,
+        resource_type="document",
+        resource_id=str(doc_id),
+        detail={"filename": doc.filename},
+    )
+
 
 # ─────────────────────────────────────────────
 # Document Upload
@@ -475,6 +494,17 @@ async def upload_documents(
     await db.commit()
     for doc in created_docs:
         await db.refresh(doc)
+
+    for doc in created_docs:
+        background_tasks.add_task(
+            record_audit_log,
+            action="document.upload",
+            user_id=current_user.id,
+            knowledge_base_id=kb.id,
+            resource_type="document",
+            resource_id=str(doc.id),
+            detail={"filename": doc.filename, "file_size_bytes": doc.file_size_bytes},
+        )
 
     # Process ingestion in-process, after the response is sent — no Celery
     # worker required (see comment on run_ingestion for why).

@@ -10,6 +10,7 @@ from app.models.document import Document, DocumentStatus
 from app.api.deps import get_current_user
 from app.core.circuit_breakers import breakers
 from app.rag.resilience.circuit_breaker import CircuitState
+from app.core.audit import record_audit_log
 
 router = APIRouter()
 
@@ -96,6 +97,12 @@ async def trip_circuit_breaker(
     if name not in breakers:
         raise HTTPException(status_code=404, detail="Circuit breaker not found")
     breakers[name].trip()
+    await record_audit_log(
+        action="admin.circuit_breaker_trip",
+        user_id=current_user.id,
+        resource_type="circuit_breaker",
+        resource_id=name,
+    )
     return {"name": name, "state": "open"}
 
 
@@ -107,6 +114,12 @@ async def reset_circuit_breaker(
     if name not in breakers:
         raise HTTPException(status_code=404, detail="Circuit breaker not found")
     breakers[name].reset()
+    await record_audit_log(
+        action="admin.circuit_breaker_reset",
+        user_id=current_user.id,
+        resource_type="circuit_breaker",
+        resource_id=name,
+    )
     return {"name": name, "state": "closed"}
 
 
@@ -145,5 +158,14 @@ async def retry_dlq(
         original_filename=doc.filename,
         content_type=doc.mime_type,
         doc_id=str(doc.id),
+    )
+    background_tasks.add_task(
+        record_audit_log,
+        action="admin.dlq_retry",
+        user_id=current_user.id,
+        knowledge_base_id=kb.id,
+        resource_type="document",
+        resource_id=str(doc.id),
+        detail={"filename": doc.filename},
     )
     return {"id": entry_id, "status": "queued"}

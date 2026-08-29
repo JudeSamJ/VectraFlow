@@ -16,6 +16,7 @@ from app.api.deps import get_current_user
 from app.dependencies import get_milvus_index_manager
 from app.rag.indexing.milvus_index_manager import MilvusIndexManager
 from app.services.capacity_service import active_kb_count, total_storage_bytes
+from app.core.audit import record_audit_log
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -135,6 +136,16 @@ async def create_knowledge_base(
     db.add(kb)
     await db.commit()
     await db.refresh(kb)
+
+    await record_audit_log(
+        action="kb.create",
+        user_id=current_user.id,
+        knowledge_base_id=kb.id,
+        resource_type="knowledge_base",
+        resource_id=str(kb.id),
+        detail={"name": kb.name},
+    )
+
     return kb
 
 
@@ -306,6 +317,15 @@ async def delete_knowledge_base(
         kb_id=str(kb_id),
         deleted_by=str(current_user.id),
         was_owner=was_owner,
+    )
+
+    await record_audit_log(
+        action="kb.delete",
+        user_id=current_user.id,
+        knowledge_base_id=kb.id,
+        resource_type="knowledge_base",
+        resource_id=str(kb.id),
+        detail={"name": kb.name, "was_owner": was_owner},
     )
 
 
