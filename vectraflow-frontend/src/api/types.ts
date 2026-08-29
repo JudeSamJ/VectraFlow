@@ -16,6 +16,24 @@ export interface KnowledgeBase {
   created_at: string;
 }
 
+export interface KBCapacity {
+  count: number;
+  limit: number;
+  limit_reached: boolean;
+}
+
+export interface SharedKBEntry {
+  id: string;
+  name: string;
+  slug: string;
+  owner_email: string;
+  document_count: number;
+  chunk_count: number;
+  index_status: IndexStatus;
+  created_at: string;
+  is_mine: boolean;
+}
+
 export interface Document {
   id: string;
   filename: string;

@@ -73,6 +73,15 @@ class Settings(BaseSettings):
 
     DOCUMENT_VERSION_RETENTION_DAYS: int = 90
 
+    # Free-tier guardrails
+    # Zilliz Cloud's free tier caps an account at 5 vector collections total,
+    # so we cap knowledge base creation app-wide (across all users) to match.
+    MAX_KNOWLEDGE_BASES: int = 5
+    # When true, any signed-in user may delete any knowledge base (not just their
+    # own) so the shared free-tier Zilliz slots can be freed up by whoever needs
+    # one next. Turn this off once the app has per-user billing/quotas.
+    SHARED_KB_POOL_MODE: bool = True
+
     # Celery
     CELERY_BROKER_URL: Optional[str] = None
     CELERY_RESULT_BACKEND: Optional[str] = None

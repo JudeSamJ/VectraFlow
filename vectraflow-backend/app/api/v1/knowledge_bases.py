@@ -1,18 +1,30 @@
 import uuid
 import re
+import structlog
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, computed_field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from datetime import datetime
 
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.models.knowledge_base import KnowledgeBase, IndexStatus
 from app.api.deps import get_current_user
+from app.dependencies import get_milvus_index_manager
+from app.rag.indexing.milvus_index_manager import MilvusIndexManager
 
+logger = structlog.get_logger(__name__)
 router = APIRouter()
+
+
+async def _active_kb_count(db: AsyncSession) -> int:
+    result = await db.execute(
+        select(func.count()).select_from(KnowledgeBase).where(KnowledgeBase.deleted_at.is_(None))
+    )
+    return result.scalar_one()
 
 
 class KBCreate(BaseModel):
@@ -57,6 +69,24 @@ class KBResponse(BaseModel):
         from_attributes = True
 
 
+class KBCapacityResponse(BaseModel):
+    count: int
+    limit: int
+    limit_reached: bool
+
+
+class SharedKBEntry(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    owner_email: str
+    document_count: int
+    chunk_count: int
+    index_status: IndexStatus
+    created_at: datetime
+    is_mine: bool
+
+
 def _make_slug(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return slug or "kb"
@@ -74,6 +104,19 @@ async def create_knowledge_base(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    current_count = await _active_kb_count(db)
+    if current_count >= settings.MAX_KNOWLEDGE_BASES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Knowledge base limit reached ({current_count}/{settings.MAX_KNOWLEDGE_BASES}). "
+                f"This app runs on Zilliz Cloud's free tier, which only supports "
+                f"{settings.MAX_KNOWLEDGE_BASES} vector collections in total across all users. "
+                "Delete an existing knowledge base (see the shared pool) to free up a slot, "
+                "then try again."
+            ),
+        )
+
     kb_id = uuid.uuid4()
     slug = _make_slug(kb_in.name)
     collection_name = _make_collection_name(slug, kb_id)
@@ -110,6 +153,59 @@ async def list_knowledge_bases(
         .order_by(KnowledgeBase.created_at.desc())
     )
     return result.scalars().all()
+
+
+# NOTE: these fixed-path routes must stay above `/{kb_id}` so FastAPI doesn't
+# try to parse "capacity" / "shared-pool" as a UUID path param.
+@router.get("/capacity", response_model=KBCapacityResponse)
+async def kb_capacity(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    App-wide knowledge base usage vs. the free-tier cap. Zilliz Cloud's free
+    tier supports only MAX_KNOWLEDGE_BASES vector collections total, so this
+    is counted across all users, not just the current one.
+    """
+    count = await _active_kb_count(db)
+    return KBCapacityResponse(
+        count=count,
+        limit=settings.MAX_KNOWLEDGE_BASES,
+        limit_reached=count >= settings.MAX_KNOWLEDGE_BASES,
+    )
+
+
+@router.get("/shared-pool", response_model=List[SharedKBEntry])
+async def shared_kb_pool(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Lists every active knowledge base across all users. Used by the "limit
+    reached" UI so any signed-in user can free up a shared free-tier slot,
+    since this demo deployment doesn't have per-user Zilliz quotas.
+    """
+    result = await db.execute(
+        select(KnowledgeBase, User.email)
+        .join(User, KnowledgeBase.owner_id == User.id)
+        .where(KnowledgeBase.deleted_at.is_(None))
+        .order_by(KnowledgeBase.created_at.asc())
+    )
+    rows = result.all()
+    return [
+        SharedKBEntry(
+            id=kb.id,
+            name=kb.name,
+            slug=kb.slug,
+            owner_email=owner_email,
+            document_count=kb.document_count,
+            chunk_count=kb.chunk_count,
+            index_status=kb.index_status,
+            created_at=kb.created_at,
+            is_mine=(kb.owner_id == current_user.id),
+        )
+        for kb, owner_email in rows
+    ]
 
 
 @router.get("/{kb_id}", response_model=KBResponse)
@@ -167,21 +263,48 @@ async def delete_knowledge_base(
     kb_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    index_manager: MilvusIndexManager = Depends(get_milvus_index_manager),
 ):
     from datetime import timezone
-    result = await db.execute(
-        select(KnowledgeBase).where(
-            KnowledgeBase.id == kb_id,
-            KnowledgeBase.owner_id == current_user.id,
-            KnowledgeBase.deleted_at.is_(None),
-        )
-    )
+
+    # In SHARED_KB_POOL_MODE (default on, for this free-tier demo deployment)
+    # any signed-in user can delete any knowledge base — not just their own —
+    # so the 5 shared Zilliz Cloud free-tier slots can be freed up by whoever
+    # needs the next one. Flip SHARED_KB_POOL_MODE off once this app has
+    # per-user billing/quotas and each user should only manage their own KBs.
+    filters = [KnowledgeBase.id == kb_id, KnowledgeBase.deleted_at.is_(None)]
+    if not settings.SHARED_KB_POOL_MODE:
+        filters.append(KnowledgeBase.owner_id == current_user.id)
+
+    result = await db.execute(select(KnowledgeBase).where(*filters))
     kb = result.scalars().first()
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
+
+    was_owner = kb.owner_id == current_user.id
     kb.deleted_at = datetime.now(timezone.utc)
     db.add(kb)
     await db.commit()
+
+    # Actually drop the Zilliz/Milvus collection — soft-deleting only the
+    # Postgres row would leave the collection counted against the free-tier
+    # cap, so the "5 knowledge base" limit would never actually free up.
+    try:
+        await index_manager.delete_collection(kb.milvus_collection_name)
+    except Exception as exc:
+        logger.warning(
+            "milvus_collection_drop_failed",
+            kb_id=str(kb_id),
+            collection=kb.milvus_collection_name,
+            error=str(exc),
+        )
+
+    logger.info(
+        "kb_deleted",
+        kb_id=str(kb_id),
+        deleted_by=str(current_user.id),
+        was_owner=was_owner,
+    )
 
 
 @router.get("/{kb_id}/stats")

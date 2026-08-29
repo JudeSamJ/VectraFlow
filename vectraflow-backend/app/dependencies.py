@@ -3,7 +3,9 @@ from functools import lru_cache
 import structlog
 
 from app.config import settings
+from app.rag.embeddings.base_provider import BaseEmbeddingProvider
 from app.rag.embeddings.tei_provider import TEIEmbeddingProvider
+from app.rag.embeddings.cohere_provider import CohereEmbeddingProvider
 from app.rag.generation.groq_llm_provider import GroqLLMProvider
 from app.rag.indexing.milvus_index_manager import MilvusIndexManager
 from app.rag.retrieval.milvus_retriever import MilvusRetriever
@@ -23,19 +25,24 @@ logger = structlog.get_logger(__name__)
 
 
 @lru_cache()
-def get_embedding_provider() -> TEIEmbeddingProvider:
+def get_embedding_provider() -> BaseEmbeddingProvider:
     """
-    Hugging Face TEI — self-hosted open-source embeddings.
-    Model: BAAI/bge-small-en-v1.5 (384-dim, English, runs on t2.micro).
-    Set HUGGINGFACE_TEI_ENDPOINT in .env to your TEI server URL.
+    Default: Cohere's hosted Embed API (COHERE_API_KEY) — no self-hosted
+    infrastructure needed, so there's no EC2/Docker box to keep running.
+
+    If HUGGINGFACE_TEI_ENDPOINT is explicitly set, that self-hosted TEI
+    server is used instead (kept for anyone who still wants to self-host).
     """
     endpoint = settings.HUGGINGFACE_TEI_ENDPOINT
-    if not endpoint:
+    if endpoint:
+        return TEIEmbeddingProvider(endpoint=endpoint, dimensions=384)
+
+    if not settings.COHERE_API_KEY:
         raise RuntimeError(
-            "HUGGINGFACE_TEI_ENDPOINT is not set. "
-            "Deploy the TEI server and set its URL in .env."
+            "No embedding provider configured. Set COHERE_API_KEY (recommended — "
+            "hosted, no server to run) or HUGGINGFACE_TEI_ENDPOINT to self-host TEI."
         )
-    return TEIEmbeddingProvider(endpoint=endpoint, dimensions=384)
+    return CohereEmbeddingProvider(api_key=settings.COHERE_API_KEY, dimensions=384)
 
 
 @lru_cache()

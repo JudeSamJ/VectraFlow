@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { KnowledgeBase } from './types';
+import type { KBCapacity, KnowledgeBase, SharedKBEntry } from './types';
 
 export const kbApi = {
   list: () =>
@@ -9,4 +9,9 @@ export const kbApi = {
     apiClient.post<KnowledgeBase>('/knowledge-bases', data),
   reindex: (id: string) => apiClient.post(`/knowledge-bases/${id}/reindex`),
   delete: (id: string) => apiClient.delete(`/knowledge-bases/${id}`),
+  // Free-tier (Zilliz Cloud) usage — capped app-wide, not per user.
+  capacity: () => apiClient.get<KBCapacity>('/knowledge-bases/capacity'),
+  // Every active knowledge base across all users, so anyone can free up a
+  // shared slot once the free-tier cap is hit.
+  sharedPool: () => apiClient.get<SharedKBEntry[]>('/knowledge-bases/shared-pool'),
 };

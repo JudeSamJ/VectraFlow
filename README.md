@@ -4,9 +4,18 @@ VectraFlow is an AI-native, production-grade Retrieval-Augmented Generation (RAG
 
 ---
 
+## Live demo notes
+
+This hosted instance runs entirely on free-tier infrastructure, so a couple of things are worth knowing before you dive in:
+
+* **Only 5 knowledge bases can exist at a time.** Vector collections are stored on [Zilliz Cloud](https://zilliz.com/)'s free tier, which caps an account at 5 collections total — shared across every visitor to this demo, not just you. If knowledge base creation fails with a "limit reached" message, delete an existing one (any knowledge base, from any user, can be deleted from the app for exactly this reason) to free up a slot, then create yours.
+* **Embeddings run on Cohere's hosted API**, not a self-hosted GPU box. An earlier version of this project ran Hugging Face TEI on a self-managed EC2 instance for embeddings; that's been retired in favor of Cohere's Embed API so the app has no backing server to keep alive (and no EC2 bill).
+
+---
+
 ## System Architecture
 
-The project is split into a **FastAPI backend** (celery task-based parsing + PostgreSQL vector database) and a **Vite + React SPA frontend** (styled with Vanilla CSS for maximum visual fidelity and caching with React Query).
+The project is split into a **FastAPI backend** (Celery task-based parsing + Milvus/Zilliz Cloud vector store + PostgreSQL metadata) and a **Vite + React SPA frontend** (styled with Vanilla CSS for maximum visual fidelity and caching with React Query).
 
 ```mermaid
 graph TD
@@ -17,10 +26,11 @@ graph TD
         BE -->|Async Tasks| Redis[(Redis Broker)]
         Redis -->|Jobs Queue| CW[Celery Worker]
         CW -->|Document Parses| S3[(AWS S3 / Storage)]
-        CW -->|Metadata & Vectors| DB[(PostgreSQL + pgvector)]
+        CW -->|Metadata| DB[(PostgreSQL)]
+        CW -->|Vectors, max 5 collections| MV[(Milvus / Zilliz Cloud — free tier)]
         
         BE -->|Retrieval / Chat Queries| DB
-        BE -->|Vectors Index Query| DB
+        BE -->|Vector Index Query| MV
     end
 ```
 
@@ -61,10 +71,11 @@ VectraFlow/
 
 ### Backend
 * **Web Framework**: FastAPI (Uvicorn server)
-* **Database**: PostgreSQL with `pgvector` extension (SQLAlchemy 2.0 Async)
+* **Database**: PostgreSQL for relational metadata (SQLAlchemy 2.0 Async)
+* **Vector Store**: Milvus / Zilliz Cloud (free tier — capped at 5 collections, enforced app-wide)
 * **Broker & Cache**: Redis
 * **Background Processing**: Celery (handles long document ingestion, table extractions)
-* **LLM Integrations**: Groq Cloud (Llama 3.3 70B), HuggingFace TEI (Text Embeddings)
+* **LLM Integrations**: Groq Cloud (Llama 3.3 70B) for generation, Cohere Embed API (hosted, no self-hosted server) for embeddings, Cohere Rerank for reranking
 
 ### Frontend
 * **Core**: React 18, Vite 5, TypeScript 5
