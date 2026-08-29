@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     # one next. Turn this off once the app has per-user billing/quotas.
     SHARED_KB_POOL_MODE: bool = True
 
+    # AWS's S3 free tier only covers 5GB of storage (first 12 months); beyond
+    # that every GB is billed. Cap total uploaded document bytes app-wide so a
+    # burst of uploads can't silently run up a bill.
+    MAX_TOTAL_STORAGE_BYTES: int = 5 * 1024 * 1024 * 1024
+
     # Celery
     CELERY_BROKER_URL: Optional[str] = None
     CELERY_RESULT_BACKEND: Optional[str] = None

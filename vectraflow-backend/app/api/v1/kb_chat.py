@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.models.knowledge_base import KnowledgeBase
@@ -27,6 +28,7 @@ from app.api.deps import get_current_user
 from app.dependencies import get_rag_orchestrator, get_retrieval_engine
 from app.rag.pipeline.rag_orchestrator import RAGOrchestrator
 from app.rag.retrieval.retrieval_engine import RetrievalEngine
+from app.services.capacity_service import total_storage_bytes
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -297,10 +299,28 @@ async def upload_documents(
     kb = await _get_kb(kb_id, current_user, db)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+    # Read everything up front so we can size-check the whole batch before
+    # writing anything to disk/S3 — reject atomically rather than uploading
+    # some files and then failing partway through.
+    contents: List[bytes] = [await f.read() for f in files]
+    incoming_bytes = sum(len(c) for c in contents)
+
+    used_bytes = await total_storage_bytes(db)
+    if used_bytes + incoming_bytes > settings.MAX_TOTAL_STORAGE_BYTES:
+        raise HTTPException(
+            status_code=http_status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                f"Storage limit reached: this upload needs {incoming_bytes / (1024 * 1024):.1f} MB, but "
+                f"only {(settings.MAX_TOTAL_STORAGE_BYTES - used_bytes) / (1024 * 1024):.1f} MB remain of the "
+                f"{settings.MAX_TOTAL_STORAGE_BYTES / (1024 ** 3):.0f} GB app-wide storage cap "
+                "(this app runs on AWS S3's free tier, shared across all users). "
+                "Delete some documents or an existing knowledge base to free up space."
+            ),
+        )
+
     created_docs: List[Document] = []
 
-    for file in files:
-        content = await file.read()
+    for file, content in zip(files, contents):
         content_hash = hashlib.sha256(content).hexdigest()
         file_size = len(content)
 

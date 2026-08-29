@@ -9,6 +9,7 @@ VectraFlow is an AI-native, production-grade Retrieval-Augmented Generation (RAG
 This hosted instance runs entirely on free-tier infrastructure, so a couple of things are worth knowing before you dive in:
 
 * **Only 5 knowledge bases can exist at a time.** Vector collections are stored on [Zilliz Cloud](https://zilliz.com/)'s free tier, which caps an account at 5 collections total — shared across every visitor to this demo, not just you. If knowledge base creation fails with a "limit reached" message, delete an existing one (any knowledge base, from any user, can be deleted from the app for exactly this reason) to free up a slot, then create yours.
+* **Total document storage is capped at 5GB app-wide.** Uploaded files live in AWS S3, whose free tier only covers 5GB (for the first 12 months) — beyond that, storage is billed. Uploads that would push the app over that cap are rejected; delete some documents or a knowledge base to free up room.
 * **Embeddings run on Cohere's hosted API**, not a self-hosted GPU box. An earlier version of this project ran Hugging Face TEI on a self-managed EC2 instance for embeddings; that's been retired in favor of Cohere's Embed API so the app has no backing server to keep alive (and no EC2 bill).
 
 ---

@@ -112,7 +112,7 @@ export function KBListPage() {
             display: 'flex', alignItems: 'center', gap: 10,
             background: capacity.limit_reached ? 'rgba(255,160,67,0.08)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${capacity.limit_reached ? 'rgba(255,160,67,0.25)' : 'var(--border-default)'}`,
-            borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 24,
+            borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 12,
             fontSize: 'var(--text-sm)', color: 'var(--text-secondary)',
           }}
         >
@@ -130,6 +130,30 @@ export function KBListPage() {
               Free up a slot
             </Button>
           )}
+        </div>
+      )}
+
+      {capacity && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: capacity.storage_limit_reached ? 'rgba(255,77,77,0.08)' : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${capacity.storage_limit_reached ? 'rgba(255,77,77,0.25)' : 'var(--border-default)'}`,
+            borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 24,
+            fontSize: 'var(--text-sm)', color: 'var(--text-secondary)',
+          }}
+        >
+          {capacity.storage_limit_reached && <AlertTriangle size={15} color="#FF4D4D" />}
+          <span>
+            <strong style={{ color: 'var(--text-primary)' }}>
+              {formatBytes(capacity.storage_used_bytes)} / {formatBytes(capacity.storage_limit_bytes)} storage used
+            </strong>
+            {' — '}document uploads are stored on AWS S3, whose free tier only covers{' '}
+            {formatBytes(capacity.storage_limit_bytes)} app-wide.
+            {capacity.storage_limit_reached
+              ? ' Delete some documents or a knowledge base to free up space before uploading more.'
+              : ''}
+          </span>
         </div>
       )}
 

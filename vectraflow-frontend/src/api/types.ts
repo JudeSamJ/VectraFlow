@@ -20,6 +20,9 @@ export interface KBCapacity {
   count: number;
   limit: number;
   limit_reached: boolean;
+  storage_used_bytes: number;
+  storage_limit_bytes: number;
+  storage_limit_reached: boolean;
 }
 
 export interface SharedKBEntry {

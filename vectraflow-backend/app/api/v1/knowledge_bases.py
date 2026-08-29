@@ -15,16 +15,10 @@ from app.models.knowledge_base import KnowledgeBase, IndexStatus
 from app.api.deps import get_current_user
 from app.dependencies import get_milvus_index_manager
 from app.rag.indexing.milvus_index_manager import MilvusIndexManager
+from app.services.capacity_service import active_kb_count, total_storage_bytes
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
-
-
-async def _active_kb_count(db: AsyncSession) -> int:
-    result = await db.execute(
-        select(func.count()).select_from(KnowledgeBase).where(KnowledgeBase.deleted_at.is_(None))
-    )
-    return result.scalar_one()
 
 
 class KBCreate(BaseModel):
@@ -73,6 +67,9 @@ class KBCapacityResponse(BaseModel):
     count: int
     limit: int
     limit_reached: bool
+    storage_used_bytes: int
+    storage_limit_bytes: int
+    storage_limit_reached: bool
 
 
 class SharedKBEntry(BaseModel):
@@ -104,7 +101,7 @@ async def create_knowledge_base(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    current_count = await _active_kb_count(db)
+    current_count = await active_kb_count(db)
     if current_count >= settings.MAX_KNOWLEDGE_BASES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -164,14 +161,19 @@ async def kb_capacity(
 ):
     """
     App-wide knowledge base usage vs. the free-tier cap. Zilliz Cloud's free
-    tier supports only MAX_KNOWLEDGE_BASES vector collections total, so this
-    is counted across all users, not just the current one.
+    tier supports only MAX_KNOWLEDGE_BASES vector collections total, and AWS
+    S3's free tier only covers MAX_TOTAL_STORAGE_BYTES of storage — both are
+    counted across all users, not just the current one.
     """
-    count = await _active_kb_count(db)
+    count = await active_kb_count(db)
+    storage_used = await total_storage_bytes(db)
     return KBCapacityResponse(
         count=count,
         limit=settings.MAX_KNOWLEDGE_BASES,
         limit_reached=count >= settings.MAX_KNOWLEDGE_BASES,
+        storage_used_bytes=storage_used,
+        storage_limit_bytes=settings.MAX_TOTAL_STORAGE_BYTES,
+        storage_limit_reached=storage_used >= settings.MAX_TOTAL_STORAGE_BYTES,
     )
 
 

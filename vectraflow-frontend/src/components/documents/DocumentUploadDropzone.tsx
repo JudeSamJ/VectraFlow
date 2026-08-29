@@ -27,6 +27,7 @@ interface DocumentsTabProps {
 export function DocumentsTab({ kbId }: DocumentsTabProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const qc = useQueryClient();
   const prevStatuses = useRef<Record<string, string>>({});
 
@@ -54,11 +55,21 @@ export function DocumentsTab({ kbId }: DocumentsTabProps) {
     if (!files.length) return;
     setUploading(true);
     setUploadProgress(0);
+    setUploadError(null);
     const fd = new FormData();
     files.forEach(f => fd.append('files', f));
     try {
       await documentsApi.upload(kbId, fd, setUploadProgress);
       refetch();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      setUploadError(
+        typeof detail === 'string'
+          ? detail
+          : err?.response?.status === 413
+            ? 'Storage limit reached — delete some documents to free up space.'
+            : 'Upload failed.'
+      );
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -95,6 +106,12 @@ export function DocumentsTab({ kbId }: DocumentsTabProps) {
         </p>
         {uploading && <LinearProgress value={uploadProgress} gradient style={{ marginTop: 12 }} />}
       </div>
+
+      {uploadError && (
+        <div style={{ background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 'var(--text-sm)', color: '#FF4D4D' }}>
+          {uploadError}
+        </div>
+      )}
 
       {/* Document list */}
       {isLoading ? (
