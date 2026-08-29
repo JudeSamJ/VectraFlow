@@ -1,4 +1,5 @@
 import json
+import time
 import structlog
 from typing import List, Dict, AsyncGenerator
 from app.rag.query_understanding.guardrail_filter import GuardrailFilter, GuardrailException
@@ -7,6 +8,7 @@ from app.rag.query_understanding.query_rewriter import QueryRewriter
 from app.rag.query_understanding.query_decomposer import QueryDecomposer
 from app.rag.retrieval.retrieval_engine import RetrievalEngine
 from app.rag.generation.generation_engine import GenerationEngine
+from app.core import metrics
 
 logger = structlog.get_logger(__name__)
 
@@ -59,20 +61,23 @@ class RAGOrchestrator:
         if intent == QueryIntent.chit_chat:
             # Bypass retrieval, stream directly from LLM
             logger.info("rag_chat_bypassing_retrieval")
+            gen_start = time.perf_counter()
             async for chunk in self.generator.generate_stream(query, nodes=[], chat_history=chat_history):
                 yield chunk
+            metrics.record_generation((time.perf_counter() - gen_start) * 1000)
             return
-            
+
         # 3. Query Rewriting & Decomposition
         # Rewrite to optimize for vector search
         rewritten_queries = await self.rewriter.rewrite(query)
         primary_search_query = rewritten_queries[0] if rewritten_queries else query
-        
+
         # Decompose for multi-hop
         sub_queries = await self.decomposer.decompose(primary_search_query)
         logger.info("rag_chat_query_prepared", original=query, sub_queries=sub_queries)
-        
+
         # 4. Retrieval & Reranking
+        retrieval_start = time.perf_counter()
         retrieved_nodes = await self.retriever.run(
             original_query=primary_search_query,
             sub_queries=sub_queries,
@@ -80,7 +85,10 @@ class RAGOrchestrator:
             top_k_per_query=20,
             top_n_final=5
         )
-        
+        metrics.record_retrieval((time.perf_counter() - retrieval_start) * 1000, had_context=len(retrieved_nodes) > 0)
+
         # 5. Generation with Citations
+        gen_start = time.perf_counter()
         async for chunk in self.generator.generate_stream(query, nodes=retrieved_nodes, chat_history=chat_history):
             yield chunk
+        metrics.record_generation((time.perf_counter() - gen_start) * 1000)

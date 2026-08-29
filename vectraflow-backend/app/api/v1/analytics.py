@@ -9,6 +9,7 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document
 from app.models.conversation import Message
 from app.api.deps import get_current_user
+from app.core import metrics
 
 router = APIRouter()
 
@@ -56,10 +57,12 @@ async def get_metrics(
     )
     total_conversations = int(conv_result.scalar() or 0)
 
+    live = metrics.snapshot()
+
     return AnalyticsMetrics(
-        avg_retrieval_latency_ms=420.0,
-        avg_generation_latency_ms=1850.0,
-        no_context_rate=0.04,
+        avg_retrieval_latency_ms=round(live["avg_retrieval_latency_ms"], 1),
+        avg_generation_latency_ms=round(live["avg_generation_latency_ms"], 1),
+        no_context_rate=round(live["no_context_rate"], 4),
         estimated_daily_cost_usd=round(total_chunks * 0.000003, 4),
         total_documents=total_docs,
         total_chunks=total_chunks,
