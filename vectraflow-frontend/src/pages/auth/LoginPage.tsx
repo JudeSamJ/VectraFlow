@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Input } from '../../components/ui/Input';
+import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { AuthLayout } from '../../components/auth/AuthLayout';
+import { AuthInput } from '../../components/auth/AuthInput';
 import { authApi } from '../../api/auth';
 import { apiClient } from '../../api/client';
 import { useAuthStore } from '../../stores/authStore';
@@ -34,27 +36,41 @@ export function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
-      <div style={{ width: '100%', maxWidth: 400, padding: 24 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 44, height: 44, background: 'var(--accent)', borderRadius: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <span style={{ color: 'var(--text-on-accent)', fontSize: 22, fontWeight: 700 }}>V</span>
+    <AuthLayout
+      title="Sign in to VectraFlow"
+      subtitle="Your RAG knowledge assistant"
+      footer={<>No account? <Link to="/register">Register</Link></>}
+    >
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <AuthInput
+          label="Email" type="email" icon={<Mail size={16} />}
+          value={email} onChange={e => setEmail(e.target.value)}
+          placeholder="you@company.com" required autoComplete="email"
+        />
+        <AuthInput
+          label="Password" type="password" icon={<Lock size={16} />}
+          value={password} onChange={e => setPassword(e.target.value)}
+          placeholder="••••••••" required autoComplete="current-password"
+        />
+
+        {error && (
+          <div
+            className="shake"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.2)',
+              borderRadius: 'var(--radius-md)', padding: '10px 12px',
+              color: 'var(--status-high)', fontSize: 'var(--text-sm)',
+            }}
+          >
+            <AlertCircle size={15} style={{ flexShrink: 0 }} /> {error}
           </div>
-          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Sign in to VectraFlow</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginTop: 6 }}>Your RAG knowledge assistant</p>
-        </div>
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required />
-          <Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
-          {error && <p style={{ color: 'var(--status-high)', fontSize: 'var(--text-sm)' }}>{error}</p>}
-          <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: 8 }}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </Button>
-        </form>
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-          No account? <Link to="/register">Register</Link>
-        </p>
-      </div>
-    </div>
+        )}
+
+        <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: 4, height: 44 }}>
+          {loading ? <><Loader2 size={16} className="spin" /> Signing in…</> : 'Sign in'}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }
