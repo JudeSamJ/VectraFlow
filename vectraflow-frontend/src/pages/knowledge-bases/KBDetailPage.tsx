@@ -7,6 +7,9 @@ import { Tabs } from '../../components/ui/Tabs';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { kbApi } from '../../api/knowledgeBases';
 import { DocumentsTab } from '../../components/documents/DocumentUploadDropzone';
+import { PipelineConfigTab } from '../../components/knowledge-bases/PipelineConfigTab';
+import { ChunkInspectorTab } from '../../components/knowledge-bases/ChunkInspectorTab';
+import { HealthTab } from '../../components/knowledge-bases/HealthTab';
 import { formatBytes, formatTokens } from '../../utils/formatters';
 import type { IndexStatus } from '../../api/types';
 
@@ -92,9 +95,9 @@ export function KBDetailPage() {
       <Tabs tabs={tabs} defaultKey="documents">
         {activeKey => {
           if (activeKey === 'documents') return <DocumentsTab kbId={id!} />;
-          if (activeKey === 'pipeline') return <p style={{ color: 'var(--text-secondary)' }}>Pipeline config editor coming soon.</p>;
-          if (activeKey === 'chunks') return <p style={{ color: 'var(--text-secondary)' }}>Chunk inspector coming soon.</p>;
-          return <p style={{ color: 'var(--text-secondary)' }}>Health metrics coming soon.</p>;
+          if (activeKey === 'pipeline') return <PipelineConfigTab kbId={id!} pipelineConfig={kb.pipeline_config ?? {}} />;
+          if (activeKey === 'chunks') return <ChunkInspectorTab kbId={id!} />;
+          return <HealthTab kbId={id!} />;
         }}
       </Tabs>
     </div>

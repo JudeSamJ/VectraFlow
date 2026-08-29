@@ -264,6 +264,51 @@ async def retrieve(
 
 
 # ─────────────────────────────────────────────
+# Chunk Inspector — browse indexed chunks straight from Zilliz/Milvus
+# ─────────────────────────────────────────────
+
+@router.get("/{kb_id}/chunks")
+async def list_kb_chunks(
+    kb_id: uuid.UUID,
+    limit: int = 25,
+    offset: int = 0,
+    document_id: Optional[uuid.UUID] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    index_manager: MilvusIndexManager = Depends(get_milvus_index_manager),
+):
+    kb = await _get_kb(kb_id, current_user, db)
+    limit = max(1, min(limit, 100))
+    try:
+        rows = await index_manager.list_chunks(
+            kb.milvus_collection_name,
+            limit=limit,
+            offset=offset,
+            document_id=str(document_id) if document_id else None,
+        )
+    except Exception as exc:
+        logger.error("list_chunks_failed", kb_id=str(kb_id), error=str(exc))
+        raise HTTPException(status_code=500, detail=f"Failed to list chunks: {exc}")
+
+    return {
+        "chunks": [
+            {
+                "chunk_id": row.get("chunk_id"),
+                "document_id": row.get("document_id"),
+                "text": row.get("text"),
+                "chunk_index": row.get("chunk_index"),
+                "page_number": row.get("page_number"),
+                "section_heading": row.get("section_heading"),
+                "token_count": row.get("token_count"),
+            }
+            for row in rows
+        ],
+        "total": kb.chunk_count,
+        "has_more": len(rows) == limit,
+    }
+
+
+# ─────────────────────────────────────────────
 # Sample Queries — LLM-suggested example searches for this KB
 # ─────────────────────────────────────────────
 

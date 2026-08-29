@@ -358,6 +358,7 @@ async def kb_health(
     kb_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    index_manager: MilvusIndexManager = Depends(get_milvus_index_manager),
 ):
     result = await db.execute(
         select(KnowledgeBase).where(KnowledgeBase.id == kb_id, KnowledgeBase.owner_id == current_user.id)
@@ -365,4 +366,27 @@ async def kb_health(
     kb = result.scalars().first()
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-    return {"status": "ok", "index_status": kb.index_status, "collection": kb.milvus_collection_name}
+
+    # Genuine live check, not just cached Postgres counters — actually calls
+    # Zilliz/Milvus so this reflects real connectivity/entity count right now.
+    milvus_reachable = True
+    milvus_entity_count = None
+    milvus_error = None
+    try:
+        stats = await index_manager.get_collection_stats(kb.milvus_collection_name)
+        milvus_entity_count = stats.get("entity_count")
+    except Exception as exc:
+        milvus_reachable = False
+        milvus_error = str(exc)
+        logger.warning("kb_health_milvus_check_failed", kb_id=str(kb_id), error=str(exc))
+
+    return {
+        "status": "ok" if milvus_reachable else "degraded",
+        "index_status": kb.index_status,
+        "collection": kb.milvus_collection_name,
+        "milvus_reachable": milvus_reachable,
+        "milvus_entity_count": milvus_entity_count,
+        "milvus_error": milvus_error,
+        "postgres_chunk_count": kb.chunk_count,
+        "postgres_document_count": kb.document_count,
+    }

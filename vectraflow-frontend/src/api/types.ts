@@ -14,6 +14,28 @@ export interface KnowledgeBase {
   storage_bytes: number;
   last_ingested_at: string | null;
   created_at: string;
+  pipeline_config: Record<string, any>;
+}
+
+export interface IndexedChunk {
+  chunk_id: string;
+  document_id: string;
+  text: string;
+  chunk_index: number;
+  page_number: number | null;
+  section_heading: string | null;
+  token_count: number;
+}
+
+export interface KBHealth {
+  status: 'ok' | 'degraded';
+  index_status: IndexStatus;
+  collection: string;
+  milvus_reachable: boolean;
+  milvus_entity_count: number | null;
+  milvus_error: string | null;
+  postgres_chunk_count: number;
+  postgres_document_count: number;
 }
 
 export interface KBCapacity {

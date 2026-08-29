@@ -173,3 +173,25 @@ class MilvusIndexManager:
         return {
             "entity_count": collection.num_entities
         }
+
+    async def list_chunks(
+        self, collection_name: str, limit: int = 25, offset: int = 0, document_id: str | None = None
+    ) -> List[Dict[str, Any]]:
+        """Scalar (non-vector) listing of indexed chunks, for the Chunk Inspector UI."""
+        alias = get_milvus_alias()
+        collection = Collection(collection_name, using=alias)
+        expr = f"document_id == '{document_id}'" if document_id else 'chunk_id != ""'
+        output_fields = [
+            "chunk_id", "document_id", "text", "chunk_index",
+            "page_number", "section_heading", "token_count",
+        ]
+
+        async def _query():
+            return collection.query(
+                expr=expr,
+                output_fields=output_fields,
+                limit=limit,
+                offset=offset,
+            )
+
+        return await get_breaker("milvus").call("milvus-query", _query)
