@@ -6,25 +6,26 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-# Free open-source models on Groq (as of 2026)
+# Free open-source models on Groq. llama-3.3-70b-versatile and
+# llama-3.1-8b-instant were deprecated by Groq — use the gpt-oss models
+# below instead (see console.groq.com/docs/deprecations for the current list).
 GROQ_MODELS = {
-    "llama-3.3-70b": "llama-3.3-70b-versatile",     # best quality
-    "llama-3.1-8b":  "llama-3.1-8b-instant",          # fastest / cheapest
-    "mixtral-8x7b":  "mixtral-8x7b-32768",             # long context
-    "gemma2-9b":     "gemma2-9b-it",                   # Google Gemma 2
+    "gpt-oss-120b":  "openai/gpt-oss-120b",  # best quality (replaces llama-3.3-70b-versatile)
+    "gpt-oss-20b":   "openai/gpt-oss-20b",   # fastest / cheapest (replaces llama-3.1-8b-instant)
+    "qwen3-32b":     "qwen/qwen3-32b",       # long context alternative
 }
 
 
 class GroqLLMProvider(BaseLLMProvider):
     """
     LLM provider backed by Groq Cloud — free hosted inference for
-    open-source models (Llama 3.3 70B, Mixtral 8x7B, Gemma2 9B).
+    open-source models (openai/gpt-oss-120b by default).
 
     Groq's API is OpenAI-compatible so we reuse the openai SDK
     with a custom base_url.
     """
 
-    def __init__(self, api_key: str, model_name: str = "llama-3.3-70b-versatile"):
+    def __init__(self, api_key: str, model_name: str = "openai/gpt-oss-120b"):
         self.client = openai.AsyncOpenAI(
             api_key=api_key,
             base_url="https://api.groq.com/openai/v1",

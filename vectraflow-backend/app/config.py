@@ -41,7 +41,9 @@ class Settings(BaseSettings):
 
     # Groq Cloud
     GROQ_API_KEY: str
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # llama-3.3-70b-versatile was deprecated by Groq; openai/gpt-oss-120b is
+    # the recommended same-tier replacement (see console.groq.com/docs/deprecations).
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
 
     # Hugging Face TEI
     HUGGINGFACE_TEI_ENDPOINT: Optional[str] = None

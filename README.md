@@ -77,7 +77,7 @@ VectraFlow/
 * **Vector Store**: Milvus / Zilliz Cloud (free tier — capped at 5 collections, enforced app-wide)
 * **Broker & Cache**: Redis
 * **Background Processing**: Celery (handles long document ingestion, table extractions)
-* **LLM Integrations**: Groq Cloud (Llama 3.3 70B) for generation, Cohere Embed API (hosted, no self-hosted server) for embeddings, Cohere Rerank for reranking
+* **LLM Integrations**: Groq Cloud (openai/gpt-oss-120b) for generation, Cohere Embed API (hosted, no self-hosted server) for embeddings, Cohere Rerank for reranking
 
 ### Frontend
 * **Core**: React 18, Vite 5, TypeScript 5
