@@ -317,41 +317,58 @@ async def sample_queries(
     kb_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    retrieval_engine: RetrievalEngine = Depends(get_retrieval_engine),
+    index_manager: MilvusIndexManager = Depends(get_milvus_index_manager),
     llm: BaseLLMProvider = Depends(get_llm_provider),
 ):
     kb = await _get_kb(kb_id, current_user, db)
     if kb.document_count == 0:
         return SampleQueriesResponse(queries=[])
 
-    # Pull a broad sample of chunks using the KB's own name/description as
-    # the seed query, then ask the LLM to propose realistic example searches
-    # grounded in that actual content — not just generic guesses.
-    seed_query = f"{kb.name} {kb.description}" if kb.description else kb.name
-    try:
-        nodes = await retrieval_engine.run(
-            original_query=seed_query,
-            sub_queries=[seed_query],
-            collection_name=kb.milvus_collection_name,
-            top_k_per_query=10,
-            top_n_final=6,
+    result = await db.execute(
+        select(Document).where(
+            Document.knowledge_base_id == kb_id,
+            Document.deleted_at.is_(None),
+            Document.status == DocumentStatus.ready,
         )
-    except Exception as exc:
-        logger.warning("sample_queries_retrieval_failed", kb_id=str(kb_id), error=str(exc))
+    )
+    docs = result.scalars().all()
+    if not docs:
         return SampleQueriesResponse(queries=[])
 
-    if not nodes:
+    # Pull chunks from EVERY document (via a scalar Milvus query filtered per
+    # document_id), not from a single semantic search seeded by the KB's
+    # name/description — that biased retrieval toward whichever one document
+    # scored best, so a KB with several unrelated documents only ever
+    # produced suggestions about one of them.
+    per_doc_chunks = max(1, 6 // len(docs))
+    excerpts = []
+    for doc in docs:
+        try:
+            rows = await index_manager.list_chunks(
+                kb.milvus_collection_name, limit=per_doc_chunks, offset=0, document_id=str(doc.id)
+            )
+        except Exception as exc:
+            logger.warning("sample_queries_chunk_fetch_failed", kb_id=str(kb_id), doc_id=str(doc.id), error=str(exc))
+            continue
+        for row in rows:
+            text = row.get("text")
+            if text:
+                excerpts.append(f'[From "{doc.filename}"]\n{text[:400]}')
+
+    if not excerpts:
         return SampleQueriesResponse(queries=[])
 
-    excerpts = "\n\n".join(n.text[:400] for n in nodes if n.text)
+    context = "\n\n".join(excerpts)
     system_prompt = (
         "You suggest example search queries for a document retrieval system. "
-        "Given excerpts from a knowledge base, propose short, natural questions a user "
-        "could type to search it. Return ONLY a JSON array of exactly 5 short strings — "
-        "no prose, no numbering, no markdown fences."
+        "Given excerpts from MULTIPLE documents in a knowledge base (each labeled with its "
+        "source document), propose short, natural questions a user could type to search it — "
+        "cover a MIX of the different documents/topics shown, not just one, roughly "
+        "proportional to how many documents are represented. Return ONLY a JSON array of "
+        "exactly 5 short strings — no prose, no numbering, no markdown fences."
     )
     try:
-        raw = await llm.generate(prompt=excerpts, system_prompt=system_prompt, temperature=0.5)
+        raw = await llm.generate(prompt=context, system_prompt=system_prompt, temperature=0.6)
         import json
         import re
         match = re.search(r"\[.*\]", raw, re.DOTALL)
