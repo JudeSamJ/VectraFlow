@@ -284,6 +284,23 @@ async def delete_document(
     doc.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
+    # Actually free the underlying bytes — soft-deleting only the Postgres
+    # row would leave the file's size still counted against the app-wide S3
+    # storage cap, so "delete a document to free up space" wouldn't work.
+    if os.path.isabs(doc.storage_path):
+        # storage_path is a local on-disk fallback path (S3 upload failed at
+        # ingest time), not an S3 key — remove the local file instead.
+        try:
+            os.remove(doc.storage_path)
+        except OSError as exc:
+            logger.warning("local_file_delete_failed", doc_id=str(doc_id), path=doc.storage_path, error=str(exc))
+    else:
+        try:
+            from app.services.storage_service import storage_service
+            await storage_service.delete_file(doc.storage_path)
+        except Exception as exc:
+            logger.warning("s3_delete_failed", doc_id=str(doc_id), key=doc.storage_path, error=str(exc))
+
 
 # ─────────────────────────────────────────────
 # Document Upload
