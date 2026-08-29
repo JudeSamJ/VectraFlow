@@ -3,6 +3,7 @@ import tiktoken
 from typing import AsyncGenerator
 from .base_llm_provider import BaseLLMProvider
 from app.core.circuit_breakers import get_breaker
+from app.core import metrics
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -53,7 +54,13 @@ class GroqLLMProvider(BaseLLMProvider):
             return response.choices[0].message.content
 
         try:
-            return await get_breaker("llm-provider").call("groq", _call)
+            result = await get_breaker("llm-provider").call("groq", _call)
+            # Estimated locally (tiktoken cl100k), not provider-reported usage —
+            # "estimated_daily_cost_usd" is exactly that, an estimate.
+            input_tokens = sum(self.count_tokens(m.get("content") or "") for m in messages)
+            output_tokens = self.count_tokens(result or "")
+            metrics.record_llm_cost(input_tokens, output_tokens)
+            return result
         except Exception as e:
             logger.error("groq_generate_failed", model=self.model_name, error=str(e))
             raise
@@ -97,9 +104,17 @@ class GroqLLMProvider(BaseLLMProvider):
                 if content:
                     yield content
 
+        output_parts: list[str] = []
         try:
             async for token in get_breaker("llm-provider").call_stream("groq", _stream):
+                output_parts.append(token)
                 yield token
+            # Only record cost once the stream finished successfully — a
+            # partial/aborted stream (client disconnect, mid-stream error)
+            # shouldn't be billed for tokens that were never really "used".
+            input_tokens = sum(self.count_tokens(m.get("content") or "") for m in messages)
+            output_tokens = self.count_tokens("".join(output_parts))
+            metrics.record_llm_cost(input_tokens, output_tokens)
         except Exception as e:
             logger.error("groq_generate_stream_failed", model=self.model_name, error=str(e))
             raise

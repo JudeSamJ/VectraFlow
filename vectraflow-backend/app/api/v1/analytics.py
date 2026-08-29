@@ -63,7 +63,7 @@ async def get_metrics(
         avg_retrieval_latency_ms=round(live["avg_retrieval_latency_ms"], 1),
         avg_generation_latency_ms=round(live["avg_generation_latency_ms"], 1),
         no_context_rate=round(live["no_context_rate"], 4),
-        estimated_daily_cost_usd=round(total_chunks * 0.000003, 4),
+        estimated_daily_cost_usd=round(live["estimated_daily_cost_usd"], 4),
         total_documents=total_docs,
         total_chunks=total_chunks,
         total_conversations=total_conversations,

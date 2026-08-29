@@ -1,9 +1,11 @@
 import os
+import math
 import structlog
 from typing import List
 import cohere
 from app.rag.retrieval.base_retriever import BaseReranker, RetrievedNode
 from app.core.circuit_breakers import get_breaker
+from app.core import metrics
 
 logger = structlog.get_logger(__name__)
 
@@ -34,7 +36,10 @@ class CohereReranker(BaseReranker):
                 "cohere-rerank", self.client.rerank,
                 query=query, documents=docs, top_n=top_n, model=self.model_name,
             )
-            
+            # Billed as "searches" — one search covers a query plus up to
+            # 100 documents, so more than that counts as multiple searches.
+            metrics.record_rerank_cost(max(1, math.ceil(len(docs) / 100)))
+
             reranked_nodes = []
             for result in response.results:
                 original_node = node_list[result.index]
