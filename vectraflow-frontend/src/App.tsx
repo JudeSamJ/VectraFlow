@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { KBListPage } from './pages/knowledge-bases/KBListPage';
 import { KBDetailPage } from './pages/knowledge-bases/KBDetailPage';
+import { KBSettingsPage } from './pages/knowledge-bases/KBSettingsPage';
 import { ChatPage } from './pages/chat/ChatPage';
 import { ConversationsPage } from './pages/conversations/ConversationsPage';
 import { RetrievalPage } from './pages/retrieval/RetrievalPage';
@@ -14,6 +15,7 @@ import { EvaluationPage } from './pages/evaluation/EvaluationPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { GovernancePage } from './pages/governance/GovernancePage';
 import { AdminPage } from './pages/admin/AdminPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { useAuthStore } from './stores/authStore';
 
 const qc = new QueryClient({
@@ -44,6 +46,7 @@ export default function App() {
             <Route index element={<DashboardPage />} />
             <Route path="knowledge-bases" element={<KBListPage />} />
             <Route path="knowledge-bases/:id" element={<KBDetailPage />} />
+            <Route path="knowledge-bases/:id/settings" element={<KBSettingsPage />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="conversations" element={<ConversationsPage />} />
             <Route path="retrieval" element={<RetrievalPage />} />
@@ -51,6 +54,7 @@ export default function App() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="governance" element={<GovernancePage />} />
             <Route path="admin" element={<AdminPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
