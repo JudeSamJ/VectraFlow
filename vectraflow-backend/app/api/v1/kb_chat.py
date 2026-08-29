@@ -287,11 +287,11 @@ async def delete_document(
     await db.commit()
 
     # Actually free the underlying bytes — soft-deleting only the Postgres
-    # row would leave the file's size still counted against the app-wide S3
+    # row would leave the file's size still counted against the app-wide
     # storage cap, so "delete a document to free up space" wouldn't work.
     if os.path.isabs(doc.storage_path):
-        # storage_path is a local on-disk fallback path (S3 upload failed at
-        # ingest time), not an S3 key — remove the local file instead.
+        # storage_path is a local on-disk fallback path (cloud upload failed
+        # at ingest time), not a Cloudinary key — remove the local file instead.
         try:
             os.remove(doc.storage_path)
         except OSError as exc:
@@ -301,7 +301,7 @@ async def delete_document(
             from app.services.storage_service import storage_service
             await storage_service.delete_file(doc.storage_path)
         except Exception as exc:
-            logger.warning("s3_delete_failed", doc_id=str(doc_id), key=doc.storage_path, error=str(exc))
+            logger.warning("cloud_delete_failed", doc_id=str(doc_id), key=doc.storage_path, error=str(exc))
 
     # Remove the document's chunks from Zilliz/Milvus too — otherwise a
     # "deleted" document's content stays retrievable (and rerankable,
@@ -332,8 +332,8 @@ async def upload_documents(
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     # Read everything up front so we can size-check the whole batch before
-    # writing anything to disk/S3 — reject atomically rather than uploading
-    # some files and then failing partway through.
+    # writing anything to disk/cloud storage — reject atomically rather than
+    # uploading some files and then failing partway through.
     contents: List[bytes] = [await f.read() for f in files]
     incoming_bytes = sum(len(c) for c in contents)
 
@@ -345,7 +345,7 @@ async def upload_documents(
                 f"Storage limit reached: this upload needs {incoming_bytes / (1024 * 1024):.1f} MB, but "
                 f"only {(settings.MAX_TOTAL_STORAGE_BYTES - used_bytes) / (1024 * 1024):.1f} MB remain of the "
                 f"{settings.MAX_TOTAL_STORAGE_BYTES / (1024 ** 3):.0f} GB app-wide storage cap "
-                "(this app runs on AWS S3's free tier, shared across all users). "
+                "(this app runs on Cloudinary's free tier, shared across all users). "
                 "Delete some documents or an existing knowledge base to free up space."
             ),
         )
@@ -363,18 +363,18 @@ async def upload_documents(
         async with aiofiles.open(storage_path, "wb") as f:
             await f.write(content)
 
-        # Upload to S3 for durable storage
-        s3_key = f"documents/{kb.id}/{file_id}{ext}"
+        # Upload to Cloudinary for durable storage
+        object_key = f"documents/{kb.id}/{file_id}{ext}"
         try:
             from app.services.storage_service import storage_service
             await storage_service.upload_file(
-                object_name=s3_key,
+                object_name=object_key,
                 file_data=content,
                 content_type=file.content_type or "application/octet-stream",
             )
-            permanent_path = s3_key
-        except Exception as s3_err:
-            logger.warning("s3_upload_skipped", error=str(s3_err), fallback=storage_path)
+            permanent_path = object_key
+        except Exception as upload_err:
+            logger.warning("cloud_upload_skipped", error=str(upload_err), fallback=storage_path)
             permanent_path = storage_path
 
         doc = Document(

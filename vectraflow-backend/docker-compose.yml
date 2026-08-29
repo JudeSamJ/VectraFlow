@@ -1,16 +1,16 @@
 version: '3.8'
 
 # =============================================================
-# AWS CLOUD DEPLOYMENT
+# FREE-TIER CLOUD DEPLOYMENT (no AWS anywhere)
 #
 # All infrastructure is external:
-#   PostgreSQL  → AWS RDS
-#   Redis       → AWS ElastiCache
-#   Storage     → AWS S3
+#   PostgreSQL  → Neon (serverless Postgres)
+#   Redis       → hosted Redis (e.g. Upstash)
+#   Storage     → Cloudinary (raw file uploads)
 #   Vector DB   → Zilliz Cloud (managed Milvus)
 #
 # This file runs only the application containers.
-# Set all AWS credentials in .env before running.
+# Set all credentials in .env before running.
 # =============================================================
 
 services:

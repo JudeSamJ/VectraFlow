@@ -161,9 +161,9 @@ async def kb_capacity(
 ):
     """
     App-wide knowledge base usage vs. the free-tier cap. Zilliz Cloud's free
-    tier supports only MAX_KNOWLEDGE_BASES vector collections total, and AWS
-    S3's free tier only covers MAX_TOTAL_STORAGE_BYTES of storage — both are
-    counted across all users, not just the current one.
+    tier supports only MAX_KNOWLEDGE_BASES vector collections total, and
+    Cloudinary's free tier only covers MAX_TOTAL_STORAGE_BYTES of storage —
+    both are counted across all users, not just the current one.
     """
     count = await active_kb_count(db)
     storage_used = await total_storage_bytes(db)

@@ -9,8 +9,9 @@ VectraFlow is an AI-native, production-grade Retrieval-Augmented Generation (RAG
 This hosted instance runs entirely on free-tier infrastructure, so a couple of things are worth knowing before you dive in:
 
 * **Only 5 knowledge bases can exist at a time.** Vector collections are stored on [Zilliz Cloud](https://zilliz.com/)'s free tier, which caps an account at 5 collections total — shared across every visitor to this demo, not just you. If knowledge base creation fails with a "limit reached" message, delete an existing one (any knowledge base, from any user, can be deleted from the app for exactly this reason) to free up a slot, then create yours.
-* **Total document storage is capped at 5GB app-wide.** Uploaded files live in AWS S3, whose free tier only covers 5GB (for the first 12 months) — beyond that, storage is billed. Uploads that would push the app over that cap are rejected; delete some documents or a knowledge base to free up room.
+* **Total document storage is capped at 3GB app-wide.** Uploaded files live on [Cloudinary](https://cloudinary.com/), whose free plan is a shared pool of 25 credits/month across storage, bandwidth, and transformations (~1 credit per GB) — this app reserves a conservative slice of that for storage alone. Uploads that would push the app over that cap are rejected; delete some documents or a knowledge base to free up room.
 * **Embeddings run on Cohere's hosted API**, not a self-hosted GPU box. An earlier version of this project ran Hugging Face TEI on a self-managed EC2 instance for embeddings; that's been retired in favor of Cohere's Embed API so the app has no backing server to keep alive (and no EC2 bill).
+* **No AWS anywhere.** This app previously used AWS S3 for storage; that integration has been fully removed (no AWS account, IAM keys, or S3 bucket exist in this codebase anymore) in favor of Cloudinary.
 
 ---
 
@@ -26,7 +27,7 @@ graph TD
     subgraph Backend Infrastructure
         BE -->|Async Tasks| Redis[(Redis Broker)]
         Redis -->|Jobs Queue| CW[Celery Worker]
-        CW -->|Document Parses| S3[(AWS S3 / Storage)]
+        CW -->|Document Parses| CDN[(Cloudinary / Storage)]
         CW -->|Metadata| DB[(PostgreSQL)]
         CW -->|Vectors, max 5 collections| MV[(Milvus / Zilliz Cloud — free tier)]
         
@@ -93,7 +94,7 @@ VectraFlow/
 ### Backend Setup
 
 #### 1. Configure Environment Variables
-Copy `.env.example` to `.env` inside `vectraflow-backend/` and fill in the missing keys (e.g. AWS credentials, DB credentials, Groq API Key):
+Copy `.env.example` to `.env` inside `vectraflow-backend/` and fill in the missing keys (e.g. Cloudinary credentials, DB credentials, Groq API Key):
 ```bash
 cd vectraflow-backend
 cp .env.example .env

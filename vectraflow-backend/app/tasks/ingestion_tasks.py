@@ -143,16 +143,17 @@ def process_document_task(
         run_async(_update_document_status(real_doc_id, "parsing"))
 
     try:
-        # If path looks like an S3 key (no drive letter, no leading slash) download it
-        is_s3_key = temp_file_path and not os.path.isabs(temp_file_path) and not os.path.exists(temp_file_path)
-        if is_s3_key:
+        # If path looks like a cloud storage key (no drive letter, no leading
+        # slash, no local file at that path) download it from Cloudinary.
+        is_remote_key = temp_file_path and not os.path.isabs(temp_file_path) and not os.path.exists(temp_file_path)
+        if is_remote_key:
             try:
                 from app.services.storage_service import storage_service
                 file_content = run_async(storage_service.download_file(temp_file_path))
-                logger.info("s3_download_for_ingestion", key=temp_file_path, size=len(file_content))
-            except Exception as s3_err:
+                logger.info("cloud_download_for_ingestion", key=temp_file_path, size=len(file_content))
+            except Exception as download_err:
                 raise FileNotFoundError(
-                    f"File not found locally and S3 download failed: {temp_file_path} — {s3_err}"
+                    f"File not found locally and cloud download failed: {temp_file_path} — {download_err}"
                 )
         else:
             with open(temp_file_path, "rb") as f:
@@ -208,7 +209,7 @@ def process_document_task(
         raise self.retry(exc=exc, countdown=30)
 
     finally:
-        # Only delete if it was a real local temp file (not an S3 key)
+        # Only delete if it was a real local temp file (not a cloud storage key)
         if temp_file_path and os.path.isabs(temp_file_path) and os.path.exists(temp_file_path):
             try:
                 os.remove(temp_file_path)
