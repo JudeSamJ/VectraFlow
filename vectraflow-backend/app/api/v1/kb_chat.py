@@ -149,6 +149,7 @@ async def sync_chat(
     # Collect full SSE stream and extract answer + citations
     answer_parts: List[str] = []
     citations: List[dict] = []
+    pipeline_error: Optional[str] = None
 
     try:
         async for event_str in orchestrator.chat(
@@ -172,12 +173,17 @@ async def sync_chat(
                     elif etype == "done" or payload_str == "[DONE]":
                         break
                     elif etype == "error":
+                        pipeline_error = payload.get("content") or "The RAG pipeline reported an error."
+                        logger.error("sync_chat_pipeline_error", error=pipeline_error, kb_id=str(kb_id))
                         break
                 except Exception:
                     pass
     except Exception as exc:
         logger.error("sync_chat_error", error=str(exc))
         raise HTTPException(status_code=500, detail=f"RAG pipeline error: {exc}")
+
+    if pipeline_error:
+        raise HTTPException(status_code=502, detail=pipeline_error)
 
     answer = "".join(answer_parts)
 
