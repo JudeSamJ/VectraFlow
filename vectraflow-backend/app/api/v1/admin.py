@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -98,6 +98,7 @@ async def reset_circuit_breaker(
 @router.post("/dlq/{entry_id}/retry")
 async def retry_dlq(
     entry_id: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -121,8 +122,9 @@ async def retry_dlq(
     doc.error_message = None
     await db.commit()
 
-    from app.tasks.ingestion_tasks import process_document_task
-    process_document_task.delay(
+    from app.tasks.ingestion_tasks import run_ingestion
+    background_tasks.add_task(
+        run_ingestion,
         temp_file_path=doc.storage_path,
         collection_name=kb.milvus_collection_name,
         original_filename=doc.filename,

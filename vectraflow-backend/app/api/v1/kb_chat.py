@@ -13,7 +13,7 @@ from typing import List, Optional
 
 import aiofiles
 import structlog
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status as http_status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status as http_status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -324,6 +324,7 @@ async def delete_document(
 @router.post("/{kb_id}/documents/upload", response_model=List[DocumentResponse])
 async def upload_documents(
     kb_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -394,21 +395,20 @@ async def upload_documents(
     for doc in created_docs:
         await db.refresh(doc)
 
-    # Dispatch ingestion tasks (best-effort; requires Celery worker running)
+    # Process ingestion in-process, after the response is sent — no Celery
+    # worker required (see comment on run_ingestion for why).
+    from app.tasks.ingestion_tasks import run_ingestion
     for doc in created_docs:
-        try:
-            from app.tasks.ingestion_tasks import process_document_task
-            process_document_task.delay(
-                temp_file_path=doc.storage_path,
-                collection_name=kb.milvus_collection_name,
-                original_filename=doc.filename,
-                content_type=doc.mime_type,
-                doc_id=str(doc.id),
-                pipeline_config=kb.pipeline_config,
-            )
-            logger.info("ingestion_task_dispatched", doc_id=str(doc.id), collection=kb.milvus_collection_name)
-        except Exception as exc:
-            logger.warning("ingestion_dispatch_failed", doc_id=str(doc.id), error=str(exc))
+        background_tasks.add_task(
+            run_ingestion,
+            temp_file_path=doc.storage_path,
+            collection_name=kb.milvus_collection_name,
+            original_filename=doc.filename,
+            content_type=doc.mime_type,
+            doc_id=str(doc.id),
+            pipeline_config=kb.pipeline_config,
+        )
+        logger.info("ingestion_task_scheduled", doc_id=str(doc.id), collection=kb.milvus_collection_name)
 
     return [
         DocumentResponse(
