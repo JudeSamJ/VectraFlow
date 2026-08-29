@@ -3,6 +3,7 @@ import structlog
 from typing import List
 import cohere
 from app.rag.retrieval.base_retriever import BaseReranker, RetrievedNode
+from app.core.circuit_breakers import get_breaker
 
 logger = structlog.get_logger(__name__)
 
@@ -29,11 +30,9 @@ class CohereReranker(BaseReranker):
         
         try:
             # Cohere Rerank API call
-            response = await self.client.rerank(
-                query=query,
-                documents=docs,
-                top_n=top_n,
-                model=self.model_name
+            response = await get_breaker("reranker").call(
+                "cohere-rerank", self.client.rerank,
+                query=query, documents=docs, top_n=top_n, model=self.model_name,
             )
             
             reranked_nodes = []

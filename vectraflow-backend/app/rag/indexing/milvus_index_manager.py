@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Literal
 from pymilvus import Collection, CollectionSchema, FieldSchema, DataType, utility
 from app.milvus_client import get_milvus_alias
+from app.core.circuit_breakers import get_breaker
 import structlog
 import uuid
 
@@ -144,16 +145,20 @@ class MilvusIndexManager:
         alias = get_milvus_alias()
         collection = Collection(collection_name, using=alias)
         search_params = {"metric_type": "COSINE", "params": {"ef": 64}}
-        
-        results = collection.search(
-            data=[query_vector],
-            anns_field="dense_vector",
-            param=search_params,
-            limit=top_k,
-            expr=filter_expr,
-            output_fields=output_fields
-        )
-        return results
+
+        async def _search():
+            # pymilvus is sync; wrapped in an async closure so it can run
+            # through the circuit breaker like the other provider calls.
+            return collection.search(
+                data=[query_vector],
+                anns_field="dense_vector",
+                param=search_params,
+                limit=top_k,
+                expr=filter_expr,
+                output_fields=output_fields
+            )
+
+        return await get_breaker("milvus").call("milvus-search", _search)
 
     async def hybrid_search(
         self, collection_name: str, dense_vector: List[float], sparse_query: Any,

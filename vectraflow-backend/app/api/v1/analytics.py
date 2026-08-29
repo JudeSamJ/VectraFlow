@@ -25,13 +25,6 @@ class AnalyticsMetrics(BaseModel):
     total_storage_bytes: int
 
 
-class CircuitBreaker(BaseModel):
-    name: str
-    state: str
-    failure_count: int
-    last_failure_at: str | None
-
-
 @router.get("/metrics", response_model=AnalyticsMetrics)
 async def get_metrics(
     db: AsyncSession = Depends(get_db),
@@ -74,15 +67,3 @@ async def get_metrics(
         total_knowledge_bases=total_kbs,
         total_storage_bytes=total_storage,
     )
-
-
-@router.get("/circuit-breakers", response_model=list[CircuitBreaker])
-async def get_circuit_breakers(
-    current_user: User = Depends(get_current_user),
-):
-    return [
-        CircuitBreaker(name="embedding-service", state="closed", failure_count=0, last_failure_at=None),
-        CircuitBreaker(name="llm-provider",      state="closed", failure_count=0, last_failure_at=None),
-        CircuitBreaker(name="milvus",            state="closed", failure_count=0, last_failure_at=None),
-        CircuitBreaker(name="reranker",          state="closed", failure_count=0, last_failure_at=None),
-    ]

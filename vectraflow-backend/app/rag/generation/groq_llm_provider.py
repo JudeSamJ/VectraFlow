@@ -2,6 +2,7 @@ import openai
 import tiktoken
 from typing import AsyncGenerator
 from .base_llm_provider import BaseLLMProvider
+from app.core.circuit_breakers import get_breaker
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -43,13 +44,16 @@ class GroqLLMProvider(BaseLLMProvider):
         # Groq doesn't support some OpenAI-only kwargs
         kwargs.pop("response_format", None)
 
-        try:
+        async def _call():
             response = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
                 **kwargs,
             )
             return response.choices[0].message.content
+
+        try:
+            return await get_breaker("llm-provider").call("groq", _call)
         except Exception as e:
             logger.error("groq_generate_failed", model=self.model_name, error=str(e))
             raise
@@ -80,7 +84,8 @@ class GroqLLMProvider(BaseLLMProvider):
     async def generate_stream(self, messages: list, **kwargs) -> "AsyncGenerator[str, None]":
         """Stream tokens from a pre-built messages list (used by GenerationEngine)."""
         kwargs.pop("response_format", None)
-        try:
+
+        async def _stream():
             stream = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
@@ -91,6 +96,10 @@ class GroqLLMProvider(BaseLLMProvider):
                 content = chunk.choices[0].delta.content
                 if content:
                     yield content
+
+        try:
+            async for token in get_breaker("llm-provider").call_stream("groq", _stream):
+                yield token
         except Exception as e:
             logger.error("groq_generate_stream_failed", model=self.model_name, error=str(e))
             raise

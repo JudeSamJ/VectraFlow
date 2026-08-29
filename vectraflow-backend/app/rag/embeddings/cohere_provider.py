@@ -2,6 +2,7 @@ import structlog
 from typing import List
 import cohere
 from .base_provider import BaseEmbeddingProvider
+from app.core.circuit_breakers import get_breaker
 
 logger = structlog.get_logger(__name__)
 
@@ -29,10 +30,9 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
         for i in range(0, len(safe_texts), self.max_batch_size):
             chunk = safe_texts[i : i + self.max_batch_size]
             try:
-                response = await self.client.embed(
-                    texts=chunk,
-                    model=self.model_name,
-                    input_type="search_document",
+                response = await get_breaker("embedding-service").call(
+                    "cohere-embed", self.client.embed,
+                    texts=chunk, model=self.model_name, input_type="search_document",
                 )
                 all_embeddings.extend(response.embeddings)
             except Exception as e:
@@ -43,10 +43,9 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
     async def embed_query(self, text: str) -> List[float]:
         safe = text.strip() or "empty"
         try:
-            response = await self.client.embed(
-                texts=[safe],
-                model=self.model_name,
-                input_type="search_query",
+            response = await get_breaker("embedding-service").call(
+                "cohere-embed", self.client.embed,
+                texts=[safe], model=self.model_name, input_type="search_query",
             )
             return response.embeddings[0]
         except Exception as e:
