@@ -12,13 +12,25 @@ import { MessageBubble } from '../../components/chat/MessageBubble';
 import { CitationPanel } from '../../components/chat/CitationPanel';
 import type { Citation } from '../../stores/chatStore';
 
+function timeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return 'Working late?';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  if (hour < 21) return 'Good evening';
+  return 'Working late?';
+}
+
 export function ChatPage() {
   const { activeKBId, setActiveKB } = useKBStore();
-  const { messages, agentMode, addMessage, updateStreamingMessage, finalizeMessage, setAgentMode, clearMessages, restoreConversation } = useChatStore();
+  const {
+    messages, agentMode, addMessage, updateStreamingMessage, finalizeMessage,
+    setAgentMode, clearMessages, restoreConversation,
+    conversationId, kbId: conversationKBId, setConversationId,
+  } = useChatStore();
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const restoringFromNavRef = useRef(false);
@@ -30,6 +42,15 @@ export function ChatPage() {
     queryFn: () => kbApi.list().then(r => r.data),
   });
   const kbs = Array.isArray(kbData) ? kbData : [];
+  const activeKB = kbs.find(kb => kb.id === activeKBId);
+
+  const { data: sampleData } = useQuery({
+    queryKey: ['sample-queries', activeKBId],
+    queryFn: () => kbApi.sampleQueries(activeKBId!).then(r => r.data),
+    enabled: !!activeKBId && !messages.length,
+    staleTime: 10 * 60 * 1000,
+  });
+  const sampleQueries = sampleData?.queries ?? [];
 
   // Restore conversation when navigated from history page
   useEffect(() => {
@@ -50,18 +71,20 @@ export function ChatPage() {
           content: m.content,
           citations: m.citations?.items ?? [],
         }));
-      restoreConversation(convId, restored);
-      setConversationId(convId);
+      restoreConversation(convId, kbId ?? activeKBId ?? '', restored);
     }).catch(() => {}).finally(() => {
       setRestoring(false);
       restoringFromNavRef.current = false;
     });
   }, []);
 
-  // Reset conversation when KB changes — skip during nav-restore to avoid clearing the loading state
+  // Only reset the conversation when the user genuinely switches to a
+  // different knowledge base — not merely because ChatPage remounted
+  // after navigating away and back to the same KB (conversationId/
+  // conversationKBId live in the Zustand store, so they survive that).
   useEffect(() => {
     if (restoringFromNavRef.current) return;
-    setConversationId(null);
+    if (activeKBId === conversationKBId) return;
     clearMessages();
   }, [activeKBId]);
 
@@ -70,13 +93,12 @@ export function ChatPage() {
   }, [messages]);
 
   const newChat = () => {
-    setConversationId(null);
     clearMessages();
   };
 
-  const send = async () => {
-    if (!input.trim() || streaming || !activeKBId) return;
-    const query = input.trim();
+  const send = async (overrideQuery?: string) => {
+    const query = (overrideQuery ?? input).trim();
+    if (!query || streaming || !activeKBId) return;
 
     // Create a conversation on the first message
     let convId = conversationId;
@@ -87,7 +109,7 @@ export function ChatPage() {
           title: query.slice(0, 60),
         });
         convId = convRes.data.id;
-        setConversationId(convId);
+        setConversationId(convId, activeKBId);
       } catch {
         // Continue without conversation persistence if creation fails
       }
@@ -170,13 +192,51 @@ export function ChatPage() {
             </div>
           )}
           {!restoring && !messages.length && (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, paddingTop: 80 }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, paddingTop: 60 }}>
               <div style={{ width: 48, height: 48, background: 'rgba(0,192,122,0.1)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Sparkles size={24} color="var(--accent)" />
               </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>
-                {activeKBId ? 'Ask your first question to start a conversation' : 'Select a knowledge base above to start chatting'}
-              </p>
+              {activeKBId ? (
+                <>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>
+                      {timeGreeting()}! {activeKB ? `Ask me anything about ${activeKB.name}.` : 'Ask your first question to start a conversation.'}
+                    </p>
+                    {activeKB?.description && (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginTop: 6, maxWidth: 480 }}>
+                        {activeKB.description}
+                      </p>
+                    )}
+                  </div>
+                  {sampleQueries.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 560 }}>
+                      {sampleQueries.map((q, i) => (
+                        <button
+                          key={i}
+                          onClick={() => send(q)}
+                          disabled={streaming}
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid var(--border-default)',
+                            borderRadius: 'var(--radius-full)',
+                            color: 'var(--text-secondary)',
+                            padding: '6px 14px',
+                            fontSize: 'var(--text-xs)',
+                            cursor: streaming ? 'not-allowed' : 'pointer',
+                            opacity: streaming ? 0.5 : 1,
+                          }}
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>
+                  {timeGreeting()}! Select a knowledge base above to start chatting.
+                </p>
+              )}
             </div>
           )}
           {messages.map(msg => (
@@ -214,7 +274,7 @@ export function ChatPage() {
             >
               <Bot size={12} /> Agent
             </button>
-            <Button onClick={send} disabled={!input.trim() || streaming || !activeKBId}>
+            <Button onClick={() => send()} disabled={!input.trim() || streaming || !activeKBId}>
               <Send size={14} /> {streaming ? 'Thinking…' : 'Send'}
             </Button>
           </div>
