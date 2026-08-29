@@ -25,9 +25,10 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document, DocumentStatus, SourceType
 from app.models.conversation import Conversation, Message, MessageRole
 from app.api.deps import get_current_user
-from app.dependencies import get_rag_orchestrator, get_retrieval_engine
+from app.dependencies import get_rag_orchestrator, get_retrieval_engine, get_milvus_index_manager
 from app.rag.pipeline.rag_orchestrator import RAGOrchestrator
 from app.rag.retrieval.retrieval_engine import RetrievalEngine
+from app.rag.indexing.milvus_index_manager import MilvusIndexManager
 from app.services.capacity_service import total_storage_bytes
 
 logger = structlog.get_logger(__name__)
@@ -269,8 +270,9 @@ async def delete_document(
     doc_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    index_manager: MilvusIndexManager = Depends(get_milvus_index_manager),
 ):
-    await _get_kb(kb_id, current_user, db)
+    kb = await _get_kb(kb_id, current_user, db)
     result = await db.execute(
         select(Document).where(
             Document.id == doc_id,
@@ -300,6 +302,19 @@ async def delete_document(
             await storage_service.delete_file(doc.storage_path)
         except Exception as exc:
             logger.warning("s3_delete_failed", doc_id=str(doc_id), key=doc.storage_path, error=str(exc))
+
+    # Remove the document's chunks from Zilliz/Milvus too — otherwise a
+    # "deleted" document's content stays retrievable (and rerankable,
+    # citable) in chat/retrieval indefinitely.
+    try:
+        await index_manager.delete_by_document(kb.milvus_collection_name, doc_id)
+    except Exception as exc:
+        logger.warning(
+            "milvus_chunk_delete_failed",
+            doc_id=str(doc_id),
+            collection=kb.milvus_collection_name,
+            error=str(exc),
+        )
 
 
 # ─────────────────────────────────────────────
