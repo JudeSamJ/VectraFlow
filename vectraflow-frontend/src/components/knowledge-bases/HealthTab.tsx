@@ -69,8 +69,11 @@ export function HealthTab({ kbId }: Props) {
               {health.milvus_reachable && health.milvus_entity_count !== health.postgres_chunk_count && (
                 <p style={{ fontSize: 'var(--text-xs)', color: '#FFA043', marginTop: 4 }}>
                   Note: Zilliz reports {health.milvus_entity_count?.toLocaleString()} entities, but Postgres
-                  tracks {health.postgres_chunk_count.toLocaleString()} ready chunks — a mismatch usually means
-                  a deletion or failed ingestion left orphaned vectors, or an ingestion is still in flight.
+                  tracks {health.postgres_chunk_count.toLocaleString()} ready chunks. This can mean an
+                  ingestion is still in flight, a failed ingestion left orphaned vectors — or it can just be
+                  Milvus/Zilliz's own lazy-delete lag (a deleted/reindexed document's old vectors briefly
+                  still count here until background compaction runs, even though searches already correctly
+                  exclude them). Only worth investigating if it persists.
                 </p>
               )}
             </div>

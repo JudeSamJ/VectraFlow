@@ -2,7 +2,7 @@ import uuid
 import re
 import structlog
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, computed_field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -12,6 +12,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.models.knowledge_base import KnowledgeBase, IndexStatus
+from app.models.document import Document, DocumentStatus
 from app.api.deps import get_current_user
 from app.dependencies import get_milvus_index_manager
 from app.rag.indexing.milvus_index_manager import MilvusIndexManager
@@ -390,3 +391,71 @@ async def kb_health(
         "postgres_chunk_count": kb.chunk_count,
         "postgres_document_count": kb.document_count,
     }
+
+
+@router.post("/{kb_id}/reindex")
+async def reindex_knowledge_base(
+    kb_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Re-runs ingestion for every already-indexed document in this KB, under
+    its current pipeline_config — e.g. after changing max_chunk_size.
+    Each document's old Milvus chunks are dropped first (see
+    reindex_document) so this replaces rather than duplicates them.
+    """
+    result = await db.execute(
+        select(KnowledgeBase).where(
+            KnowledgeBase.id == kb_id,
+            KnowledgeBase.owner_id == current_user.id,
+            KnowledgeBase.deleted_at.is_(None),
+        )
+    )
+    kb = result.scalars().first()
+    if not kb:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+
+    result = await db.execute(
+        select(Document).where(
+            Document.knowledge_base_id == kb_id,
+            Document.deleted_at.is_(None),
+            Document.status == DocumentStatus.ready,
+        )
+    )
+    docs = result.scalars().all()
+    if not docs:
+        raise HTTPException(
+            status_code=400,
+            detail="No successfully-indexed documents to reindex yet.",
+        )
+
+    for doc in docs:
+        doc.status = DocumentStatus.pending
+        doc.error_message = None
+    kb.index_status = IndexStatus.indexing
+    await db.commit()
+
+    from app.tasks.ingestion_tasks import reindex_document
+    for doc in docs:
+        background_tasks.add_task(
+            reindex_document,
+            doc_id=str(doc.id),
+            collection_name=kb.milvus_collection_name,
+            temp_file_path=doc.storage_path,
+            original_filename=doc.filename,
+            content_type=doc.mime_type,
+            pipeline_config=kb.pipeline_config,
+        )
+
+    await record_audit_log(
+        action="kb.reindex",
+        user_id=current_user.id,
+        knowledge_base_id=kb.id,
+        resource_type="knowledge_base",
+        resource_id=str(kb.id),
+        detail={"document_count": len(docs)},
+    )
+
+    return {"status": "queued", "document_count": len(docs)}

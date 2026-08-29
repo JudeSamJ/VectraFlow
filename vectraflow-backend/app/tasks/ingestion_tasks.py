@@ -200,6 +200,38 @@ async def run_ingestion(
                 logger.warning("temp_file_cleanup_failed", error=str(e), path=temp_file_path)
 
 
+async def reindex_document(
+    doc_id: str,
+    collection_name: str,
+    temp_file_path: str,
+    original_filename: str,
+    content_type: str,
+    pipeline_config: dict = None,
+) -> dict:
+    """
+    Drops a document's existing Milvus chunks, then re-runs ingestion for it.
+    Used by knowledge-base reindex — run_ingestion()/upsert() only ever
+    inserts, so re-ingesting an already-indexed document without first
+    clearing its old chunks would just duplicate them under the new
+    pipeline settings instead of replacing them.
+    """
+    from app.rag.indexing.milvus_index_manager import MilvusIndexManager
+    index_manager = MilvusIndexManager()
+    try:
+        await index_manager.delete_by_document(collection_name, uuid.UUID(doc_id))
+    except Exception as exc:
+        logger.warning("reindex_delete_old_chunks_failed", doc_id=doc_id, error=str(exc))
+
+    return await run_ingestion(
+        temp_file_path=temp_file_path,
+        collection_name=collection_name,
+        original_filename=original_filename,
+        content_type=content_type,
+        doc_id=doc_id,
+        pipeline_config=pipeline_config,
+    )
+
+
 # ─────────────────────────────────────────────────────────────
 # Optional Celery task wrapper — only used if a dedicated worker is
 # actually running and dispatching via .delay()/.apply_async(). The API

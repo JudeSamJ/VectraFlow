@@ -9,7 +9,8 @@ export const kbApi = {
     apiClient.post<KnowledgeBase>('/knowledge-bases', data),
   update: (id: string, data: { pipeline_config?: Record<string, any>; name?: string; description?: string }) =>
     apiClient.put<KnowledgeBase>(`/knowledge-bases/${id}`, data),
-  reindex: (id: string) => apiClient.post(`/knowledge-bases/${id}/reindex`),
+  reindex: (id: string) =>
+    apiClient.post<{ status: string; document_count: number }>(`/knowledge-bases/${id}/reindex`),
   delete: (id: string) => apiClient.delete(`/knowledge-bases/${id}`),
   // Free-tier (Zilliz Cloud) usage — capped app-wide, not per user.
   capacity: () => apiClient.get<KBCapacity>('/knowledge-bases/capacity'),

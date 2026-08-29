@@ -41,8 +41,14 @@ export function KBDetailPage() {
 
   const reindex = useMutation({
     mutationFn: () => kbApi.reindex(id!),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['kb', id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kb', id] });
+      qc.invalidateQueries({ queryKey: ['documents', id] });
+    },
   });
+  const reindexError = reindex.isError
+    ? ((reindex.error as any)?.response?.data?.detail ?? 'Failed to start reindex.')
+    : null;
 
   const del = useMutation({
     mutationFn: () => kbApi.delete(id!),
@@ -75,6 +81,15 @@ export function KBDetailPage() {
           <Trash2 size={13} /> Delete
         </Button>
       </div>
+
+      {reindex.isSuccess && (
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--accent)' }}>
+          Reindexing {reindex.data?.data?.document_count ?? ''} document(s) — statuses will update as each finishes.
+        </p>
+      )}
+      {reindexError && (
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--status-high)' }}>{reindexError}</p>
+      )}
 
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
