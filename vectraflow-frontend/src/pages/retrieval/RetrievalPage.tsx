@@ -27,6 +27,15 @@ export function RetrievalPage() {
     queryFn: () => kbApi.list().then(r => r.data),
   });
   const kbs = Array.isArray(kbData) ? kbData : [];
+
+  const { data: sampleData, isLoading: samplesLoading } = useQuery({
+    queryKey: ['sample-queries', kbId],
+    queryFn: () => kbApi.sampleQueries(kbId).then(r => r.data),
+    enabled: !!kbId,
+    staleTime: 10 * 60 * 1000,
+  });
+  const sampleQueries = sampleData?.queries ?? [];
+
   const [strategy, setStrategy] = useState<RetrievalStrategy>('hybrid');
   const [topK, setTopK] = useState(5);
   const [rerank, setRerank] = useState(true);
@@ -34,17 +43,23 @@ export function RetrievalPage() {
   const [results, setResults] = useState<RetrievalResult[]>([]);
   const [latency, setLatency] = useState<number | null>(null);
 
-  const run = async () => {
-    if (!query || !kbId) return;
+  const run = async (overrideQuery?: string) => {
+    const q = overrideQuery ?? query;
+    if (!q || !kbId) return;
     setLoading(true);
     const start = Date.now();
     try {
-      const res = await apiClient.post(`/knowledge-bases/${kbId}/retrieve`, { query, strategy, top_k: topK, rerank });
+      const res = await apiClient.post(`/knowledge-bases/${kbId}/retrieve`, { query: q, strategy, top_k: topK, rerank });
       setResults(res.data.results ?? []);
       setLatency(Date.now() - start);
     } finally {
       setLoading(false);
     }
+  };
+
+  const runSample = (q: string) => {
+    setQuery(q);
+    run(q);
   };
 
   return (
@@ -77,6 +92,33 @@ export function RetrievalPage() {
             onKeyDown={e => e.key === 'Enter' && run()}
             placeholder="Enter a retrieval query…"
           />
+
+          {kbId && (samplesLoading || sampleQueries.length > 0) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                {samplesLoading ? 'Generating sample queries…' : 'Try:'}
+              </span>
+              {sampleQueries.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => runSample(q)}
+                  disabled={loading}
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-full)',
+                    color: 'var(--text-secondary)',
+                    padding: '4px 12px',
+                    fontSize: 'var(--text-xs)',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.5 : 1,
+                  }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
             {/* Strategy */}
@@ -120,7 +162,7 @@ export function RetrievalPage() {
               </button>
             </div>
 
-            <Button onClick={run} disabled={loading || !query || !kbId}>
+            <Button onClick={() => run()} disabled={loading || !query || !kbId}>
               <Search size={14} /> {loading ? 'Searching…' : 'Search'}
             </Button>
           </div>

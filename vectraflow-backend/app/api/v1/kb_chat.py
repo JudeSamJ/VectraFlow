@@ -25,7 +25,8 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document, DocumentStatus, SourceType
 from app.models.conversation import Conversation, Message, MessageRole
 from app.api.deps import get_current_user
-from app.dependencies import get_rag_orchestrator, get_retrieval_engine, get_milvus_index_manager
+from app.dependencies import get_rag_orchestrator, get_retrieval_engine, get_milvus_index_manager, get_llm_provider
+from app.rag.generation.base_llm_provider import BaseLLMProvider
 from app.rag.pipeline.rag_orchestrator import RAGOrchestrator
 from app.rag.retrieval.retrieval_engine import RetrievalEngine
 from app.rag.indexing.milvus_index_manager import MilvusIndexManager
@@ -58,6 +59,10 @@ class RetrieveRequest(BaseModel):
     top_k: int = 5
     strategy: str = "hybrid"
     rerank: bool = True
+
+
+class SampleQueriesResponse(BaseModel):
+    queries: List[str]
 
 
 class DocumentResponse(BaseModel):
@@ -228,10 +233,80 @@ async def retrieve(
             top_k_per_query=req.top_k,
             top_n_final=req.top_k,
         )
-        return {"results": [r.__dict__ for r in results], "count": len(results)}
+        # RetrievedNode uses chunk_id/text/metadata — map to the shape the
+        # frontend's Chunk type expects (id/content/document_id/etc.), which
+        # a raw r.__dict__ dump never matched.
+        serialized = [
+            {
+                "id": r.chunk_id,
+                "document_id": r.metadata.get("document_id"),
+                "content": r.text,
+                "page_number": r.metadata.get("page_number"),
+                "score": r.score,
+                "source": r.metadata.get("section_heading") or r.metadata.get("document_id") or "",
+            }
+            for r in results
+        ]
+        return {"results": serialized, "count": len(serialized)}
     except Exception as exc:
         logger.error("retrieve_error", error=str(exc))
         raise HTTPException(status_code=500, detail=f"Retrieval error: {exc}")
+
+
+# ─────────────────────────────────────────────
+# Sample Queries — LLM-suggested example searches for this KB
+# ─────────────────────────────────────────────
+
+@router.get("/{kb_id}/sample-queries", response_model=SampleQueriesResponse)
+async def sample_queries(
+    kb_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    retrieval_engine: RetrievalEngine = Depends(get_retrieval_engine),
+    llm: BaseLLMProvider = Depends(get_llm_provider),
+):
+    kb = await _get_kb(kb_id, current_user, db)
+    if kb.document_count == 0:
+        return SampleQueriesResponse(queries=[])
+
+    # Pull a broad sample of chunks using the KB's own name/description as
+    # the seed query, then ask the LLM to propose realistic example searches
+    # grounded in that actual content — not just generic guesses.
+    seed_query = f"{kb.name} {kb.description}" if kb.description else kb.name
+    try:
+        nodes = await retrieval_engine.run(
+            original_query=seed_query,
+            sub_queries=[seed_query],
+            collection_name=kb.milvus_collection_name,
+            top_k_per_query=10,
+            top_n_final=6,
+        )
+    except Exception as exc:
+        logger.warning("sample_queries_retrieval_failed", kb_id=str(kb_id), error=str(exc))
+        return SampleQueriesResponse(queries=[])
+
+    if not nodes:
+        return SampleQueriesResponse(queries=[])
+
+    excerpts = "\n\n".join(n.text[:400] for n in nodes if n.text)
+    system_prompt = (
+        "You suggest example search queries for a document retrieval system. "
+        "Given excerpts from a knowledge base, propose short, natural questions a user "
+        "could type to search it. Return ONLY a JSON array of exactly 5 short strings — "
+        "no prose, no numbering, no markdown fences."
+    )
+    try:
+        raw = await llm.generate(prompt=excerpts, system_prompt=system_prompt, temperature=0.5)
+        import json
+        import re
+        match = re.search(r"\[.*\]", raw, re.DOTALL)
+        parsed = json.loads(match.group(0)) if match else []
+        queries = [str(q).strip() for q in parsed if str(q).strip()][:5]
+    except Exception as exc:
+        logger.warning("sample_queries_generation_failed", kb_id=str(kb_id), error=str(exc))
+        queries = []
+
+    return SampleQueriesResponse(queries=queries)
 
 
 # ─────────────────────────────────────────────

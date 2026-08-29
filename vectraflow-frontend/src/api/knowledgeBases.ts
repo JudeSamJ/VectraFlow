@@ -14,4 +14,7 @@ export const kbApi = {
   // Every active knowledge base across all users, so anyone can free up a
   // shared slot once the free-tier cap is hit.
   sharedPool: () => apiClient.get<SharedKBEntry[]>('/knowledge-bases/shared-pool'),
+  // LLM-suggested example searches grounded in this KB's actual content.
+  sampleQueries: (id: string) =>
+    apiClient.get<{ queries: string[] }>(`/knowledge-bases/${id}/sample-queries`),
 };
