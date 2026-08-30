@@ -9,6 +9,7 @@ from .access_grant import AccessGrant, PrincipalType, AccessScope, AccessPermiss
 from .pii_policy import PIIPolicy, PIIAction
 from .conversation import Conversation, Message, ConversationStatus, MessageRole
 from .audit_log import AuditLog
+from .password_reset_token import PasswordResetToken
 
 __all__ = [
     "Base",
@@ -39,4 +40,5 @@ __all__ = [
     "ConversationStatus",
     "MessageRole",
     "AuditLog",
+    "PasswordResetToken",
 ]

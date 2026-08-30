@@ -36,6 +36,31 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,https://vectraflow-frontend.vercel.app,https://vectraflow-frontend-git-main-judes-projects-f6c1a54d.vercel.app/,https://vectraflow-frontend-8ncwqny78-judes-projects-f6c1a54d.vercel.app/"
     CORS_ALLOWED_ORIGIN_REGEX: str = r"https://.*\.vercel\.app$"
 
+    # This backend's own public URL (no trailing slash) — used to build the
+    # OAuth redirect_uri sent to Google/GitHub. Must exactly match what's
+    # registered in each provider's OAuth app settings.
+    OAUTH_REDIRECT_BASE_URL: str = "http://localhost:8000"
+    # The frontend's public URL — OAuth callbacks and password-reset emails
+    # redirect/link back here.
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Google OAuth (console.cloud.google.com -> APIs & Services -> Credentials).
+    # Leave unset to keep "Continue with Google" disabled.
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+
+    # GitHub OAuth (github.com/settings/developers -> OAuth Apps).
+    # Leave unset to keep "Continue with GitHub" disabled.
+    GITHUB_CLIENT_ID: Optional[str] = None
+    GITHUB_CLIENT_SECRET: Optional[str] = None
+
+    # Transactional email for password reset — Resend (resend.com), free tier
+    # covers 3,000 emails/month. Leave unset to keep forgot-password disabled
+    # (the endpoint still responds successfully — it just won't send anything
+    # — so it never reveals whether an email address has an account).
+    RESEND_API_KEY: Optional[str] = None
+    EMAIL_FROM: str = "VectraFlow <onboarding@resend.dev>"
+
     # Encryption
     ENCRYPTION_KEY: str
 

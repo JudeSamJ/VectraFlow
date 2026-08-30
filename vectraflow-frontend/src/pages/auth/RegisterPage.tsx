@@ -4,6 +4,7 @@ import { User, Mail, Lock, AlertCircle, Loader2, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { AuthInput } from '../../components/auth/AuthInput';
+import { SocialAuthButtons } from '../../components/auth/SocialAuthButtons';
 import { authApi } from '../../api/auth';
 
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
@@ -108,6 +109,8 @@ export function RegisterPage() {
         <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: 4, height: 44 }}>
           {loading ? <><Loader2 size={16} className="spin" /> Creating account…</> : <><Check size={16} /> Create account</>}
         </Button>
+
+        <SocialAuthButtons />
       </form>
     </AuthLayout>
   );

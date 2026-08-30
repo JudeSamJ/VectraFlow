@@ -16,6 +16,10 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.user)
+    # 'password' | 'google' | 'github' — OAuth-created accounts still get a
+    # normal (random, unusable) hashed_password so the column stays NOT NULL;
+    # this just records how the account was actually created.
+    auth_provider: Mapped[str] = mapped_column(String, default="password", server_default="password")
     
     knowledge_bases = relationship("KnowledgeBase", back_populates="owner")
     api_keys = relationship("APIKey", back_populates="user")
