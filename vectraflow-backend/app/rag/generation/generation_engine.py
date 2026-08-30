@@ -37,7 +37,7 @@ class GenerationEngine:
                 
         except Exception as e:
             logger.error("generation_stream_failed", error=str(e))
-            error_payload = json.dumps({"type": "error", "content": "Generation failed."})
+            error_payload = json.dumps({"type": "error", "content": f"Generation failed: {e}"})
             yield f"data: {error_payload}\n\n"
             return
             

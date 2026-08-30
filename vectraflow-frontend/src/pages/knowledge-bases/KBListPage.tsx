@@ -150,7 +150,7 @@ export function KBListPage() {
             <strong style={{ color: 'var(--text-primary)' }}>
               {formatBytes(capacity.storage_used_bytes)} / {formatBytes(capacity.storage_limit_bytes)} storage used
             </strong>
-            {' — '}document uploads are stored on AWS S3, whose free tier only covers{' '}
+            {' — '}document uploads are stored on Cloudinary, whose free tier only covers{' '}
             {formatBytes(capacity.storage_limit_bytes)} app-wide.
             {capacity.storage_limit_reached
               ? ' Delete some documents or a knowledge base to free up space before uploading more.'

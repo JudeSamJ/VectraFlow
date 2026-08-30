@@ -7,6 +7,9 @@ import { Tabs } from '../../components/ui/Tabs';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { kbApi } from '../../api/knowledgeBases';
 import { DocumentsTab } from '../../components/documents/DocumentUploadDropzone';
+import { PipelineConfigTab } from '../../components/knowledge-bases/PipelineConfigTab';
+import { ChunkInspectorTab } from '../../components/knowledge-bases/ChunkInspectorTab';
+import { HealthTab } from '../../components/knowledge-bases/HealthTab';
 import { formatBytes, formatTokens } from '../../utils/formatters';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { IndexStatus } from '../../api/types';
@@ -40,8 +43,14 @@ export function KBDetailPage() {
 
   const reindex = useMutation({
     mutationFn: () => kbApi.reindex(id!),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['kb', id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kb', id] });
+      qc.invalidateQueries({ queryKey: ['documents', id] });
+    },
   });
+  const reindexError = reindex.isError
+    ? ((reindex.error as any)?.response?.data?.detail ?? 'Failed to start reindex.')
+    : null;
 
   const del = useMutation({
     mutationFn: () => kbApi.delete(id!),
@@ -75,6 +84,15 @@ export function KBDetailPage() {
         </Button>
       </div>
 
+      {reindex.isSuccess && (
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--accent)' }}>
+          Reindexing {reindex.data?.data?.document_count ?? ''} document(s) — statuses will update as each finishes.
+        </p>
+      )}
+      {reindexError && (
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--status-high)' }}>{reindexError}</p>
+      )}
+
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
         {[
@@ -94,9 +112,9 @@ export function KBDetailPage() {
       <Tabs tabs={tabs} defaultKey="documents">
         {activeKey => {
           if (activeKey === 'documents') return <DocumentsTab kbId={id!} />;
-          if (activeKey === 'pipeline') return <p style={{ color: 'var(--text-secondary)' }}>Pipeline config editor coming soon.</p>;
-          if (activeKey === 'chunks') return <p style={{ color: 'var(--text-secondary)' }}>Chunk inspector coming soon.</p>;
-          return <p style={{ color: 'var(--text-secondary)' }}>Health metrics coming soon.</p>;
+          if (activeKey === 'pipeline') return <PipelineConfigTab kbId={id!} pipelineConfig={kb.pipeline_config ?? {}} />;
+          if (activeKey === 'chunks') return <ChunkInspectorTab kbId={id!} />;
+          return <HealthTab kbId={id!} />;
         }}
       </Tabs>
     </div>

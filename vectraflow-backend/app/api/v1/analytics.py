@@ -9,6 +9,7 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document
 from app.models.conversation import Message
 from app.api.deps import get_current_user
+from app.core import metrics
 
 router = APIRouter()
 
@@ -23,13 +24,6 @@ class AnalyticsMetrics(BaseModel):
     total_conversations: int
     total_knowledge_bases: int
     total_storage_bytes: int
-
-
-class CircuitBreaker(BaseModel):
-    name: str
-    state: str
-    failure_count: int
-    last_failure_at: str | None
 
 
 @router.get("/metrics", response_model=AnalyticsMetrics)
@@ -63,26 +57,16 @@ async def get_metrics(
     )
     total_conversations = int(conv_result.scalar() or 0)
 
+    live = metrics.snapshot()
+
     return AnalyticsMetrics(
-        avg_retrieval_latency_ms=420.0,
-        avg_generation_latency_ms=1850.0,
-        no_context_rate=0.04,
-        estimated_daily_cost_usd=round(total_chunks * 0.000003, 4),
+        avg_retrieval_latency_ms=round(live["avg_retrieval_latency_ms"], 1),
+        avg_generation_latency_ms=round(live["avg_generation_latency_ms"], 1),
+        no_context_rate=round(live["no_context_rate"], 4),
+        estimated_daily_cost_usd=round(live["estimated_daily_cost_usd"], 4),
         total_documents=total_docs,
         total_chunks=total_chunks,
         total_conversations=total_conversations,
         total_knowledge_bases=total_kbs,
         total_storage_bytes=total_storage,
     )
-
-
-@router.get("/circuit-breakers", response_model=list[CircuitBreaker])
-async def get_circuit_breakers(
-    current_user: User = Depends(get_current_user),
-):
-    return [
-        CircuitBreaker(name="embedding-service", state="closed", failure_count=0, last_failure_at=None),
-        CircuitBreaker(name="llm-provider",      state="closed", failure_count=0, last_failure_at=None),
-        CircuitBreaker(name="milvus",            state="closed", failure_count=0, last_failure_at=None),
-        CircuitBreaker(name="reranker",          state="closed", failure_count=0, last_failure_at=None),
-    ]

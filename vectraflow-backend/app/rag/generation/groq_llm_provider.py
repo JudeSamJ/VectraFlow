@@ -2,29 +2,32 @@ import openai
 import tiktoken
 from typing import AsyncGenerator
 from .base_llm_provider import BaseLLMProvider
+from app.core.circuit_breakers import get_breaker
+from app.core import metrics
 import structlog
 
 logger = structlog.get_logger(__name__)
 
-# Free open-source models on Groq (as of 2026)
+# Free open-source models on Groq. llama-3.3-70b-versatile and
+# llama-3.1-8b-instant were deprecated by Groq — use the gpt-oss models
+# below instead (see console.groq.com/docs/deprecations for the current list).
 GROQ_MODELS = {
-    "llama-3.3-70b": "llama-3.3-70b-versatile",     # best quality
-    "llama-3.1-8b":  "llama-3.1-8b-instant",          # fastest / cheapest
-    "mixtral-8x7b":  "mixtral-8x7b-32768",             # long context
-    "gemma2-9b":     "gemma2-9b-it",                   # Google Gemma 2
+    "gpt-oss-120b":  "openai/gpt-oss-120b",  # best quality (replaces llama-3.3-70b-versatile)
+    "gpt-oss-20b":   "openai/gpt-oss-20b",   # fastest / cheapest (replaces llama-3.1-8b-instant)
+    "qwen3-32b":     "qwen/qwen3-32b",       # long context alternative
 }
 
 
 class GroqLLMProvider(BaseLLMProvider):
     """
     LLM provider backed by Groq Cloud — free hosted inference for
-    open-source models (Llama 3.3 70B, Mixtral 8x7B, Gemma2 9B).
+    open-source models (openai/gpt-oss-120b by default).
 
     Groq's API is OpenAI-compatible so we reuse the openai SDK
     with a custom base_url.
     """
 
-    def __init__(self, api_key: str, model_name: str = "llama-3.3-70b-versatile"):
+    def __init__(self, api_key: str, model_name: str = "openai/gpt-oss-120b"):
         self.client = openai.AsyncOpenAI(
             api_key=api_key,
             base_url="https://api.groq.com/openai/v1",
@@ -42,13 +45,22 @@ class GroqLLMProvider(BaseLLMProvider):
         # Groq doesn't support some OpenAI-only kwargs
         kwargs.pop("response_format", None)
 
-        try:
+        async def _call():
             response = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
                 **kwargs,
             )
             return response.choices[0].message.content
+
+        try:
+            result = await get_breaker("llm-provider").call("groq", _call)
+            # Estimated locally (tiktoken cl100k), not provider-reported usage —
+            # "estimated_daily_cost_usd" is exactly that, an estimate.
+            input_tokens = sum(self.count_tokens(m.get("content") or "") for m in messages)
+            output_tokens = self.count_tokens(result or "")
+            metrics.record_llm_cost(input_tokens, output_tokens)
+            return result
         except Exception as e:
             logger.error("groq_generate_failed", model=self.model_name, error=str(e))
             raise
@@ -79,7 +91,8 @@ class GroqLLMProvider(BaseLLMProvider):
     async def generate_stream(self, messages: list, **kwargs) -> "AsyncGenerator[str, None]":
         """Stream tokens from a pre-built messages list (used by GenerationEngine)."""
         kwargs.pop("response_format", None)
-        try:
+
+        async def _stream():
             stream = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
@@ -90,6 +103,18 @@ class GroqLLMProvider(BaseLLMProvider):
                 content = chunk.choices[0].delta.content
                 if content:
                     yield content
+
+        output_parts: list[str] = []
+        try:
+            async for token in get_breaker("llm-provider").call_stream("groq", _stream):
+                output_parts.append(token)
+                yield token
+            # Only record cost once the stream finished successfully — a
+            # partial/aborted stream (client disconnect, mid-stream error)
+            # shouldn't be billed for tokens that were never really "used".
+            input_tokens = sum(self.count_tokens(m.get("content") or "") for m in messages)
+            output_tokens = self.count_tokens("".join(output_parts))
+            metrics.record_llm_cost(input_tokens, output_tokens)
         except Exception as e:
             logger.error("groq_generate_stream_failed", model=self.model_name, error=str(e))
             raise

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime, timezone
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,16 +8,32 @@ from app.models.user import User
 from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document, DocumentStatus
 from app.api.deps import get_current_user
+from app.core.circuit_breakers import breakers
+from app.rag.resilience.circuit_breaker import CircuitState
+from app.core.audit import record_audit_log
 
 router = APIRouter()
 
-# In-memory circuit breaker state (resets on server restart — good enough for now)
-_cb_state: dict[str, dict] = {
-    "embedding-service": {"state": "closed", "failure_count": 0, "last_failure_at": None},
-    "llm-provider":      {"state": "closed", "failure_count": 0, "last_failure_at": None},
-    "milvus":            {"state": "closed", "failure_count": 0, "last_failure_at": None},
-    "reranker":          {"state": "closed", "failure_count": 0, "last_failure_at": None},
+_STATE_LABELS = {
+    CircuitState.CLOSED: "closed",
+    CircuitState.OPEN: "open",
+    CircuitState.HALF_OPEN: "half-open",
 }
+
+
+def _serialize_breaker(name: str) -> "CircuitBreaker":
+    b = breakers[name]
+    last_failure_at = (
+        datetime.fromtimestamp(b.last_failure_time, tz=timezone.utc).isoformat()
+        if b.last_failure_time
+        else None
+    )
+    return CircuitBreaker(
+        name=name,
+        state=_STATE_LABELS[b.state],
+        failure_count=b.failure_count,
+        last_failure_at=last_failure_at,
+    )
 
 
 class CircuitBreaker(BaseModel):
@@ -69,7 +86,7 @@ async def list_dlq(
 async def list_circuit_breakers(
     current_user: User = Depends(get_current_user),
 ):
-    return [CircuitBreaker(name=name, **data) for name, data in _cb_state.items()]
+    return [_serialize_breaker(name) for name in breakers]
 
 
 @router.post("/circuit-breakers/{name}/trip")
@@ -77,9 +94,15 @@ async def trip_circuit_breaker(
     name: str,
     current_user: User = Depends(get_current_user),
 ):
-    if name not in _cb_state:
+    if name not in breakers:
         raise HTTPException(status_code=404, detail="Circuit breaker not found")
-    _cb_state[name]["state"] = "open"
+    breakers[name].trip()
+    await record_audit_log(
+        action="admin.circuit_breaker_trip",
+        user_id=current_user.id,
+        resource_type="circuit_breaker",
+        resource_id=name,
+    )
     return {"name": name, "state": "open"}
 
 
@@ -88,16 +111,22 @@ async def reset_circuit_breaker(
     name: str,
     current_user: User = Depends(get_current_user),
 ):
-    if name not in _cb_state:
+    if name not in breakers:
         raise HTTPException(status_code=404, detail="Circuit breaker not found")
-    _cb_state[name]["state"] = "closed"
-    _cb_state[name]["failure_count"] = 0
+    breakers[name].reset()
+    await record_audit_log(
+        action="admin.circuit_breaker_reset",
+        user_id=current_user.id,
+        resource_type="circuit_breaker",
+        resource_id=name,
+    )
     return {"name": name, "state": "closed"}
 
 
 @router.post("/dlq/{entry_id}/retry")
 async def retry_dlq(
     entry_id: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -121,12 +150,22 @@ async def retry_dlq(
     doc.error_message = None
     await db.commit()
 
-    from app.tasks.ingestion_tasks import process_document_task
-    process_document_task.delay(
+    from app.tasks.ingestion_tasks import run_ingestion
+    background_tasks.add_task(
+        run_ingestion,
         temp_file_path=doc.storage_path,
         collection_name=kb.milvus_collection_name,
         original_filename=doc.filename,
         content_type=doc.mime_type,
         doc_id=str(doc.id),
+    )
+    background_tasks.add_task(
+        record_audit_log,
+        action="admin.dlq_retry",
+        user_id=current_user.id,
+        knowledge_base_id=kb.id,
+        resource_type="document",
+        resource_id=str(doc.id),
+        detail={"filename": doc.filename},
     )
     return {"id": entry_id, "status": "queued"}

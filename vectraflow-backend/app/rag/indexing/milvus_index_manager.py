@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Literal
 from pymilvus import Collection, CollectionSchema, FieldSchema, DataType, utility
 from app.milvus_client import get_milvus_alias
+from app.core.circuit_breakers import get_breaker
 import structlog
 import uuid
 
@@ -144,16 +145,20 @@ class MilvusIndexManager:
         alias = get_milvus_alias()
         collection = Collection(collection_name, using=alias)
         search_params = {"metric_type": "COSINE", "params": {"ef": 64}}
-        
-        results = collection.search(
-            data=[query_vector],
-            anns_field="dense_vector",
-            param=search_params,
-            limit=top_k,
-            expr=filter_expr,
-            output_fields=output_fields
-        )
-        return results
+
+        async def _search():
+            # pymilvus is sync; wrapped in an async closure so it can run
+            # through the circuit breaker like the other provider calls.
+            return collection.search(
+                data=[query_vector],
+                anns_field="dense_vector",
+                param=search_params,
+                limit=top_k,
+                expr=filter_expr,
+                output_fields=output_fields
+            )
+
+        return await get_breaker("milvus").call("milvus-search", _search)
 
     async def hybrid_search(
         self, collection_name: str, dense_vector: List[float], sparse_query: Any,
@@ -168,3 +173,25 @@ class MilvusIndexManager:
         return {
             "entity_count": collection.num_entities
         }
+
+    async def list_chunks(
+        self, collection_name: str, limit: int = 25, offset: int = 0, document_id: str | None = None
+    ) -> List[Dict[str, Any]]:
+        """Scalar (non-vector) listing of indexed chunks, for the Chunk Inspector UI."""
+        alias = get_milvus_alias()
+        collection = Collection(collection_name, using=alias)
+        expr = f"document_id == '{document_id}'" if document_id else 'chunk_id != ""'
+        output_fields = [
+            "chunk_id", "document_id", "text", "chunk_index",
+            "page_number", "section_heading", "token_count",
+        ]
+
+        async def _query():
+            return collection.query(
+                expr=expr,
+                output_fields=output_fields,
+                limit=limit,
+                offset=offset,
+            )
+
+        return await get_breaker("milvus").call("milvus-query", _query)

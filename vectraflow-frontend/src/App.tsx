@@ -4,9 +4,13 @@ import { Toaster } from 'sonner';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { KBListPage } from './pages/knowledge-bases/KBListPage';
 import { KBDetailPage } from './pages/knowledge-bases/KBDetailPage';
+import { KBSettingsPage } from './pages/knowledge-bases/KBSettingsPage';
 import { ChatPage } from './pages/chat/ChatPage';
 import { ConversationsPage } from './pages/conversations/ConversationsPage';
 import { RetrievalPage } from './pages/retrieval/RetrievalPage';
@@ -14,6 +18,7 @@ import { EvaluationPage } from './pages/evaluation/EvaluationPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { GovernancePage } from './pages/governance/GovernancePage';
 import { AdminPage } from './pages/admin/AdminPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { useAuthStore } from './stores/authStore';
 
 const qc = new QueryClient({
@@ -33,6 +38,9 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route
             path="/"
             element={
@@ -44,6 +52,7 @@ export default function App() {
             <Route index element={<DashboardPage />} />
             <Route path="knowledge-bases" element={<KBListPage />} />
             <Route path="knowledge-bases/:id" element={<KBDetailPage />} />
+            <Route path="knowledge-bases/:id/settings" element={<KBSettingsPage />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="conversations" element={<ConversationsPage />} />
             <Route path="retrieval" element={<RetrievalPage />} />
@@ -51,6 +60,7 @@ export default function App() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="governance" element={<GovernancePage />} />
             <Route path="admin" element={<AdminPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

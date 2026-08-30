@@ -1,11 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Download, CheckCircle, Shield } from 'lucide-react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { kbApi } from '../../api/knowledgeBases';
 import { apiClient } from '../../api/client';
+import { formatRelativeTime } from '../../utils/formatters';
+
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  detail: Record<string, unknown> | null;
+  user_email: string | null;
+  created_at: string;
+}
+
+function actionLabel(action: string): string {
+  return action
+    .split('.')
+    .join(' ')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
 
 const piiCategories = ['email', 'phone', 'ssn', 'credit_card', 'address', 'name', 'ip_address'];
 
@@ -22,10 +41,14 @@ const reverseActionMap: Record<string, string> = {
 };
 
 export function GovernancePage() {
+  const qc = useQueryClient();
   const [selectedKB, setSelectedKB] = useState('');
   const [enabled, setEnabled] = useState<Set<string>>(new Set(['email', 'phone', 'ssn']));
   const [action, setAction] = useState('redact');
   const [saved, setSaved] = useState(false);
+  const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const { data: kbData } = useQuery({
     queryKey: ['knowledge-bases'],
@@ -53,6 +76,35 @@ export function GovernancePage() {
     setSaved(false);
   }, [policy]);
 
+  // Audit log — first page, refetched whenever the selected KB changes
+  const {
+    data: firstPage,
+    isLoading: auditLoading,
+    isFetching: auditFetching,
+  } = useQuery({
+    queryKey: ['audit-log', selectedKB],
+    queryFn: () =>
+      apiClient
+        .get(`/knowledge-bases/${selectedKB}/governance/audit-log`, { params: { limit: 25 } })
+        .then(r => r.data as { records: AuditLogEntry[]; next_cursor: string | null }),
+    enabled: !!selectedKB,
+  });
+
+  useEffect(() => {
+    if (!firstPage) return;
+    setEntries(firstPage.records);
+    setCursor(firstPage.next_cursor);
+  }, [firstPage]);
+
+  const loadMore = async () => {
+    if (!cursor || !selectedKB) return;
+    const res = await apiClient.get(`/knowledge-bases/${selectedKB}/governance/audit-log`, {
+      params: { limit: 25, cursor },
+    });
+    setEntries(prev => [...prev, ...res.data.records]);
+    setCursor(res.data.next_cursor);
+  };
+
   const saveMutation = useMutation({
     mutationFn: () => apiClient.put(`/knowledge-bases/${selectedKB}/governance/pii-policy`, {
       id: selectedKB,
@@ -63,6 +115,7 @@ export function GovernancePage() {
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      qc.invalidateQueries({ queryKey: ['audit-log', selectedKB] });
     },
   });
 
@@ -75,14 +128,25 @@ export function GovernancePage() {
     setSaved(false);
   };
 
-  const exportLog = () => {
-    const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), message: 'No audit log entries yet.' }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportLog = async () => {
+    if (!selectedKB) return;
+    setExporting(true);
+    try {
+      const res = await apiClient.post(
+        `/knowledge-bases/${selectedKB}/governance/audit-log/export`,
+        null,
+        { params: { format: 'csv' }, responseType: 'blob' }
+      );
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-log-${selectedKB}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -185,17 +249,69 @@ export function GovernancePage() {
           <div>
             <p style={{ fontWeight: 600, fontSize: 'var(--text-md)' }}>Audit Log</p>
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
-              All document uploads, chat queries, and admin actions
+              Document uploads/deletes, chat queries, and admin actions for this knowledge base
             </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={exportLog}><Download size={13} /> Export</Button>
+          <Button variant="secondary" size="sm" onClick={exportLog} disabled={!selectedKB || exporting}>
+            <Download size={13} /> {exporting ? 'Exporting…' : 'Export'}
+          </Button>
         </div>
-        <div style={{ textAlign: 'center', padding: '40px 24px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-default)' }}>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Audit log persistence is not yet enabled.</p>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 }}>
-            Once enabled, all actions across your workspace will be recorded here.
+
+        {!selectedKB ? (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>
+            Select a knowledge base above to see its audit log.
           </p>
-        </div>
+        ) : auditLoading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[1, 2, 3].map(i => <Skeleton key={i} height={36} />)}
+          </div>
+        ) : entries.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 24px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-default)' }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>No activity recorded yet for this knowledge base.</p>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 }}>
+              Upload a document or send a chat message to see entries appear here.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {entries.map(entry => (
+                <div
+                  key={entry.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 12px', borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-default)',
+                  }}
+                >
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500, minWidth: 180 }}>
+                    {actionLabel(entry.action)}
+                  </span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', flex: 1 }}>
+                    {entry.resource_type && entry.resource_id
+                      ? `${entry.resource_type} · ${entry.resource_id.slice(0, 8)}…`
+                      : ''}
+                    {entry.detail && typeof entry.detail.query === 'string' ? ` — "${entry.detail.query}"` : ''}
+                    {entry.detail && typeof entry.detail.filename === 'string' ? ` — ${entry.detail.filename}` : ''}
+                  </span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    {entry.user_email ?? 'system'}
+                  </span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
+                    {formatRelativeTime(entry.created_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {cursor && (
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <Button variant="secondary" size="sm" onClick={loadMore} disabled={auditFetching}>
+                  Load more
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </Card>
     </div>
   );

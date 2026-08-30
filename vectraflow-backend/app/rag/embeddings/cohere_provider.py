@@ -1,9 +1,17 @@
 import structlog
+import tiktoken
 from typing import List
 import cohere
 from .base_provider import BaseEmbeddingProvider
+from app.core.circuit_breakers import get_breaker
+from app.core import metrics
 
 logger = structlog.get_logger(__name__)
+
+# Used only to estimate token counts for cost tracking — Cohere's own
+# tokenizer differs slightly, but this is close enough for an estimate
+# (the metric is explicitly named estimated_daily_cost_usd).
+_cost_tokenizer = tiktoken.get_encoding("cl100k_base")
 
 
 class CohereEmbeddingProvider(BaseEmbeddingProvider):
@@ -29,12 +37,12 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
         for i in range(0, len(safe_texts), self.max_batch_size):
             chunk = safe_texts[i : i + self.max_batch_size]
             try:
-                response = await self.client.embed(
-                    texts=chunk,
-                    model=self.model_name,
-                    input_type="search_document",
+                response = await get_breaker("embedding-service").call(
+                    "cohere-embed", self.client.embed,
+                    texts=chunk, model=self.model_name, input_type="search_document",
                 )
                 all_embeddings.extend(response.embeddings)
+                metrics.record_embed_cost(sum(len(_cost_tokenizer.encode(t)) for t in chunk))
             except Exception as e:
                 logger.error("cohere_embed_batch_failed", error=str(e), batch_start=i, batch_size=len(chunk))
                 raise
@@ -43,11 +51,11 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
     async def embed_query(self, text: str) -> List[float]:
         safe = text.strip() or "empty"
         try:
-            response = await self.client.embed(
-                texts=[safe],
-                model=self.model_name,
-                input_type="search_query",
+            response = await get_breaker("embedding-service").call(
+                "cohere-embed", self.client.embed,
+                texts=[safe], model=self.model_name, input_type="search_query",
             )
+            metrics.record_embed_cost(len(_cost_tokenizer.encode(safe)))
             return response.embeddings[0]
         except Exception as e:
             logger.error("cohere_embed_query_failed", error=str(e))

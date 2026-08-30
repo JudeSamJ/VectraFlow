@@ -22,12 +22,10 @@ class Settings(BaseSettings):
     MILVUS_USER: Optional[str] = None
     MILVUS_PASSWORD: Optional[str] = None
 
-    # AWS
-    AWS_ACCESS_KEY_ID: str
-    AWS_SECRET_ACCESS_KEY: str
-    AWS_REGION: str = "us-east-1"
-    AWS_S3_BUCKET: str = "vectraflow-documents"
-    AWS_S3_ENDPOINT_URL: Optional[str] = None
+    # Cloudinary — document object storage (no AWS anywhere in this app)
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
 
     # Auth / JWT
     ALGORITHM: str = "HS256"
@@ -38,12 +36,39 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,https://vectraflow-frontend.vercel.app,https://vectraflow-frontend-git-main-judes-projects-f6c1a54d.vercel.app/,https://vectraflow-frontend-8ncwqny78-judes-projects-f6c1a54d.vercel.app/"
     CORS_ALLOWED_ORIGIN_REGEX: str = r"https://.*\.vercel\.app$"
 
+    # This backend's own public URL (no trailing slash) — used to build the
+    # OAuth redirect_uri sent to Google/GitHub. Must exactly match what's
+    # registered in each provider's OAuth app settings.
+    OAUTH_REDIRECT_BASE_URL: str = "http://localhost:8000"
+    # The frontend's public URL — OAuth callbacks and password-reset emails
+    # redirect/link back here.
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Google OAuth (console.cloud.google.com -> APIs & Services -> Credentials).
+    # Leave unset to keep "Continue with Google" disabled.
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+
+    # GitHub OAuth (github.com/settings/developers -> OAuth Apps).
+    # Leave unset to keep "Continue with GitHub" disabled.
+    GITHUB_CLIENT_ID: Optional[str] = None
+    GITHUB_CLIENT_SECRET: Optional[str] = None
+
+    # Transactional email for password reset — Resend (resend.com), free tier
+    # covers 3,000 emails/month. Leave unset to keep forgot-password disabled
+    # (the endpoint still responds successfully — it just won't send anything
+    # — so it never reveals whether an email address has an account).
+    RESEND_API_KEY: Optional[str] = None
+    EMAIL_FROM: str = "VectraFlow <onboarding@resend.dev>"
+
     # Encryption
     ENCRYPTION_KEY: str
 
     # Groq Cloud
     GROQ_API_KEY: str
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # llama-3.3-70b-versatile was deprecated by Groq; openai/gpt-oss-120b is
+    # the recommended same-tier replacement (see console.groq.com/docs/deprecations).
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
 
     # Hugging Face TEI
     HUGGINGFACE_TEI_ENDPOINT: Optional[str] = None
@@ -82,10 +107,12 @@ class Settings(BaseSettings):
     # one next. Turn this off once the app has per-user billing/quotas.
     SHARED_KB_POOL_MODE: bool = True
 
-    # AWS's S3 free tier only covers 5GB of storage (first 12 months); beyond
-    # that every GB is billed. Cap total uploaded document bytes app-wide so a
-    # burst of uploads can't silently run up a bill.
-    MAX_TOTAL_STORAGE_BYTES: int = 5 * 1024 * 1024 * 1024
+    # Cloudinary's free plan is 25 credits/month, shared across storage,
+    # bandwidth, and transformations combined (1 credit ~= 1GB of any of
+    # them) — not a dedicated storage-only cap. Default to a conservative
+    # slice of that pool so uploads alone can't exhaust the whole monthly
+    # allowance; tune via env once you know your actual usage mix.
+    MAX_TOTAL_STORAGE_BYTES: int = 3 * 1024 * 1024 * 1024
 
     # Celery
     CELERY_BROKER_URL: Optional[str] = None
