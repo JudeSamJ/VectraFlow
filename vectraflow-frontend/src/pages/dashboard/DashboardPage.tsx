@@ -9,6 +9,7 @@ import { kbApi } from '../../api/knowledgeBases';
 import { analyticsApi } from '../../api/analytics';
 import { useAuthStore } from '../../stores/authStore';
 import { formatBytes, formatRelativeTime } from '../../utils/formatters';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { IndexStatus } from '../../api/types';
 
 const statusVariant = (s: IndexStatus): 'ready' | 'indexing' | 'error' | 'pending' => {
@@ -21,6 +22,7 @@ const statusVariant = (s: IndexStatus): 'ready' | 'indexing' | 'error' | 'pendin
 export function DashboardPage() {
   const user = useAuthStore(s => s.user);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const { data: metrics, isLoading: metricsLoading } = useQuery({
     queryKey: ['analytics-metrics'],
@@ -59,7 +61,7 @@ export function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
         {metricsLoading
           ? [1,2,3,4].map(i => <Skeleton key={i} height={90} />)
           : statCards.map(({ label, value, icon: Icon, color, path }) => (
@@ -92,7 +94,7 @@ export function DashboardPage() {
 
       {/* Recent knowledge bases */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>Your Knowledge Bases</h2>
           <Button variant="secondary" size="sm" onClick={() => navigate('/knowledge-bases')}>
             View all <ArrowRight size={13} />
@@ -117,19 +119,19 @@ export function DashboardPage() {
             {recentKBs.map(kb => (
               <Card key={kb.id} interactive onClick={() => navigate(`/knowledge-bases/${kb.id}`)} style={{ padding: '12px 16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{kb.name}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{kb.name}</p>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                       {kb.document_count} doc{kb.document_count !== 1 ? 's' : ''} · {kb.chunk_count.toLocaleString()} chunks
                     </p>
                   </div>
                   <Badge variant={statusVariant(kb.status)}>{kb.status}</Badge>
-                  {kb.last_ingested_at && (
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                  {kb.last_ingested_at && !isMobile && (
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', flexShrink: 0 }}>
                       {formatRelativeTime(kb.last_ingested_at)}
                     </span>
                   )}
-                  <ArrowRight size={14} color="var(--text-muted)" />
+                  <ArrowRight size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
                 </div>
               </Card>
             ))}
@@ -140,7 +142,7 @@ export function DashboardPage() {
       {/* Quick actions */}
       <div>
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, marginBottom: 12 }}>Quick Actions</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12 }}>
           {[
             { label: 'New Knowledge Base', desc: 'Create and start indexing documents', path: '/knowledge-bases', icon: Database },
             { label: 'Start a Chat', desc: 'Ask questions about your documents', path: '/chat', icon: MessageSquare },

@@ -8,6 +8,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { kbApi } from '../../api/knowledgeBases';
 import { DocumentsTab } from '../../components/documents/DocumentUploadDropzone';
 import { formatBytes, formatTokens } from '../../utils/formatters';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { IndexStatus } from '../../api/types';
 
 const statusVariant = (s: IndexStatus): 'ready' | 'indexing' | 'error' | 'pending' => {
@@ -28,6 +29,7 @@ export function KBDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const isMobile = useIsMobile();
 
   const { data: kb, isLoading } = useQuery({
     queryKey: ['kb', id],
@@ -60,7 +62,7 @@ export function KBDetailPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, flex: 1 }}>{kb.name}</h1>
+        <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, flex: 1, minWidth: 0, overflowWrap: 'break-word' }}>{kb.name}</h1>
         <Badge variant={statusVariant(kb.status)}>{kb.status}</Badge>
         <Button variant="secondary" size="sm" onClick={() => reindex.mutate()} disabled={reindex.isPending}>
           <RefreshCw size={13} /> Reindex
@@ -74,7 +76,7 @@ export function KBDetailPage() {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
         {[
           ['Documents', kb.document_count],
           ['Chunks', kb.chunk_count.toLocaleString()],

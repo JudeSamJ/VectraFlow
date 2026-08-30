@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { kbApi } from '../../api/knowledgeBases';
 import { apiClient } from '../../api/client';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 interface EvalItem {
   question: string;
@@ -20,6 +21,7 @@ interface EvalResult {
 }
 
 export function EvaluationPage() {
+  const isMobile = useIsMobile();
   const [creating, setCreating] = useState(false);
   const [datasetName, setDatasetName] = useState('');
   const [selectedKB, setSelectedKB] = useState('');
@@ -93,7 +95,7 @@ export function EvaluationPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Evaluation</h1>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: 4 }}>
@@ -191,7 +193,7 @@ export function EvaluationPage() {
       {/* Results */}
       {results && (
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <p style={{ fontWeight: 600, fontSize: 'var(--text-md)' }}>
                 Results — {kbName || 'Knowledge Base'}
@@ -235,7 +237,7 @@ export function EvaluationPage() {
                   }
                   <p style={{ fontWeight: 500, fontSize: 'var(--text-sm)', flex: 1 }}>Q{i + 1}: {r.question}</p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                   <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)' }}>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>EXPECTED</p>
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{r.ground_truth}</p>

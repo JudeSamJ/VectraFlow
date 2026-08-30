@@ -91,13 +91,13 @@ export function GovernancePage() {
 
       {/* KB selector */}
       <Card style={{ padding: '14px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
           <Shield size={16} color="var(--accent)" />
           <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, flex: 1 }}>Applying policy to:</p>
           <select
             value={selectedKB}
             onChange={e => { setSelectedKB(e.target.value); setSaved(false); }}
-            style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-md)', color: '#f2f2f2', padding: '6px 10px', fontSize: 'var(--text-sm)', outline: 'none', minWidth: 200 }}
+            style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-md)', color: '#f2f2f2', padding: '6px 10px', fontSize: 'var(--text-sm)', outline: 'none', minWidth: 200, flex: '1 1 200px' }}
           >
             <option value="" style={{ background: '#1a1a1a', color: '#9a9a9a' }}>Select a knowledge base…</option>
             {kbs.map(kb => <option key={kb.id} value={kb.id} style={{ background: '#1a1a1a', color: '#f2f2f2' }}>{kb.name}</option>)}
@@ -134,7 +134,7 @@ export function GovernancePage() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 20 }}>
               <label style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', fontWeight: 500 }}>Action on detection:</label>
               {[
                 { key: 'redact', label: 'Redact' },
@@ -181,7 +181,7 @@ export function GovernancePage() {
 
       {/* Audit Log */}
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <p style={{ fontWeight: 600, fontSize: 'var(--text-md)' }}>Audit Log</p>
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>

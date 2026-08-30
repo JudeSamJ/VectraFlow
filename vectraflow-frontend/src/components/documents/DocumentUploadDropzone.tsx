@@ -9,6 +9,7 @@ import { LinearProgress } from '../ui/Progress';
 import { Skeleton } from '../ui/Skeleton';
 import { documentsApi } from '../../api/documents';
 import { formatRelativeTime } from '../../utils/formatters';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { DocumentStatus } from '../../api/types';
 
 const statusVariant: Record<DocumentStatus, any> = {
@@ -25,6 +26,7 @@ interface DocumentsTabProps {
 }
 
 export function DocumentsTab({ kbId }: DocumentsTabProps) {
+  const isMobile = useIsMobile();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -126,11 +128,13 @@ export function DocumentsTab({ kbId }: DocumentsTabProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {docs.map(doc => (
             <Card key={doc.id} style={{ padding: '12px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                 <FileText size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 500 }}>{doc.filename}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{doc.chunk_count} chunks</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{formatRelativeTime(doc.created_at)}</span>
+                <span style={{ flex: '1 1 140px', minWidth: 0, fontSize: 'var(--text-sm)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.filename}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', flexShrink: 0 }}>{doc.chunk_count} chunks</span>
+                {!isMobile && (
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', flexShrink: 0 }}>{formatRelativeTime(doc.created_at)}</span>
+                )}
                 <Badge variant={statusVariant[doc.status]}>{doc.status}</Badge>
                 <Button variant="icon" onClick={() => del(doc.id)}><Trash2 size={13} /></Button>
               </div>

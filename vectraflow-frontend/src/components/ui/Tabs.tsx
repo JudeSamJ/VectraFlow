@@ -22,7 +22,7 @@ export function Tabs({ tabs, defaultKey, onChange, children }: TabsProps) {
 
   return (
     <div>
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)', marginBottom: 20 }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)', marginBottom: 20, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {tabs.map(tab => (
           <button
             key={tab.key}
@@ -33,6 +33,8 @@ export function Tabs({ tabs, defaultKey, onChange, children }: TabsProps) {
               padding: '10px 16px',
               fontSize: 'var(--text-sm)',
               fontWeight: 500,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
               color: active === tab.key ? 'var(--accent)' : 'var(--text-secondary)',
               borderBottom: active === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
               marginBottom: -1,

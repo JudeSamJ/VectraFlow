@@ -2,6 +2,7 @@ import { type ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from './Button';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 interface ModalProps {
   open: boolean;
@@ -12,6 +13,8 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, width = 480 }: ModalProps) {
+  const isMobile = useIsMobile();
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -26,8 +29,8 @@ export function Modal({ open, onClose, title, children, width = 480 }: ModalProp
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(0,0,0,0.7)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 24,
+        display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
+        padding: isMobile ? 0 : 24,
       }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -35,10 +38,12 @@ export function Modal({ open, onClose, title, children, width = 480 }: ModalProp
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-emphasis)',
-          borderRadius: 'var(--radius-xl)',
+          borderRadius: isMobile ? 'var(--radius-xl) var(--radius-xl) 0 0' : 'var(--radius-xl)',
           width: '100%',
-          maxWidth: width,
-          padding: 24,
+          maxWidth: isMobile ? '100%' : width,
+          maxHeight: isMobile ? '85vh' : '90vh',
+          overflowY: 'auto',
+          padding: isMobile ? 16 : 24,
           position: 'relative',
         }}
         onClick={e => e.stopPropagation()}

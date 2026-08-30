@@ -1,5 +1,6 @@
 import { X, FileText, ExternalLink } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { Citation } from '../../stores/chatStore';
 
 interface Props {
@@ -8,20 +9,39 @@ interface Props {
 }
 
 export function CitationPanel({ citation, onClose }: Props) {
+  const isMobile = useIsMobile();
+
   return (
-    <div
-      style={{
-        width: 360,
-        flexShrink: 0,
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-lg)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        animation: 'slideInRight 0.25s cubic-bezier(0.16,1,0.3,1)',
-      }}
-    >
+    <>
+      {isMobile && (
+        <div
+          onClick={onClose}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 299 }}
+        />
+      )}
+      <div
+        style={isMobile ? {
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 300,
+          maxHeight: '75vh',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          animation: 'slideUp 0.25s cubic-bezier(0.16,1,0.3,1)',
+        } : {
+          width: 360,
+          flexShrink: 0,
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          animation: 'slideInRight 0.25s cubic-bezier(0.16,1,0.3,1)',
+        }}
+      >
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Citation [{citation.index}]</span>
         <Button variant="icon" onClick={onClose}><X size={14} /></Button>
@@ -48,6 +68,7 @@ export function CitationPanel({ citation, onClose }: Props) {
           <ExternalLink size={12} /> Go to Document
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

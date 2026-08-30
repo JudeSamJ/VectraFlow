@@ -10,6 +10,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { kbApi } from '../../api/knowledgeBases';
 import { formatBytes, formatRelativeTime } from '../../utils/formatters';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { IndexStatus } from '../../api/types';
 
 const statusVariant = (s: IndexStatus): 'ready' | 'indexing' | 'error' | 'pending' => {
@@ -22,6 +23,7 @@ const statusVariant = (s: IndexStatus): 'ready' | 'indexing' | 'error' | 'pendin
 export function KBListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [creating, setCreating] = useState(false);
   const [managingPool, setManagingPool] = useState(false);
   const [name, setName] = useState('');
@@ -101,7 +103,7 @@ export function KBListPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Knowledge Bases</h1>
         <Button onClick={openCreate}><Plus size={15} /> New Knowledge Base</Button>
       </div>
@@ -109,7 +111,7 @@ export function KBListPage() {
       {capacity && (
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
             background: capacity.limit_reached ? 'rgba(255,160,67,0.08)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${capacity.limit_reached ? 'rgba(255,160,67,0.25)' : 'var(--border-default)'}`,
             borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 12,
@@ -136,7 +138,7 @@ export function KBListPage() {
       {capacity && (
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
             background: capacity.storage_limit_reached ? 'rgba(255,77,77,0.08)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${capacity.storage_limit_reached ? 'rgba(255,77,77,0.25)' : 'var(--border-default)'}`,
             borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 24,
@@ -158,7 +160,7 @@ export function KBListPage() {
       )}
 
       {isLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
           {[1,2,3,4].map(i => <Skeleton key={i} height={140} />)}
         </div>
       ) : !kbs.length ? (
@@ -168,12 +170,12 @@ export function KBListPage() {
           <Button onClick={openCreate} style={{ marginTop: 20 }}><Plus size={15} /> Create one</Button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 16 }}>
           {kbs.map(kb => (
             <Card key={kb.id} interactive onClick={() => navigate(`/knowledge-bases/${kb.id}`)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <span style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>{kb.name}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{kb.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                   <Badge variant={statusVariant(kb.status)}>{kb.status}</Badge>
                   <Button
                     variant="icon"
@@ -249,7 +251,7 @@ export function KBListPage() {
                 <div
                   key={entry.id}
                   style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                    display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                     padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)',
                   }}
                 >

@@ -8,6 +8,7 @@ import { apiClient } from '../../api/client';
 import { kbApi } from '../../api/knowledgeBases';
 import { useKBStore } from '../../stores/kbStore';
 import { formatLatency } from '../../utils/formatters';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { RetrievalStrategy, Chunk } from '../../api/types';
 
 const strategies: RetrievalStrategy[] = ['dense', 'sparse', 'hybrid', 'multi_query', 'hyde', 'parent_document'];
@@ -18,6 +19,7 @@ interface RetrievalResult extends Chunk {
 }
 
 export function RetrievalPage() {
+  const isMobile = useIsMobile();
   const { activeKBId, setActiveKB } = useKBStore();
   const kbId = activeKBId ?? '';
   const [query, setQuery] = useState('');
@@ -49,17 +51,18 @@ export function RetrievalPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Retrieval Playground</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Database size={14} color="var(--text-muted)" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: isMobile ? '100%' : undefined }}>
+          <Database size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
           <select
             value={kbId}
             onChange={e => setActiveKB(e.target.value || null)}
             style={{
               background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: 'var(--radius-md)', color: '#f2f2f2',
-              padding: '6px 10px', fontSize: 'var(--text-sm)', outline: 'none', cursor: 'pointer', minWidth: 200,
+              padding: '6px 10px', fontSize: 'var(--text-sm)', outline: 'none', cursor: 'pointer',
+              minWidth: isMobile ? 0 : 200, width: isMobile ? '100%' : undefined,
             }}
           >
             <option value="" style={{ background: '#1a1a1a', color: '#9a9a9a' }}>Select a knowledge base…</option>
@@ -78,7 +81,7 @@ export function RetrievalPage() {
             placeholder="Enter a retrieval query…"
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr auto auto', gap: 12, alignItems: isMobile ? 'stretch' : 'flex-end' }}>
             {/* Strategy */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', fontWeight: 500 }}>Strategy</label>
@@ -120,7 +123,7 @@ export function RetrievalPage() {
               </button>
             </div>
 
-            <Button onClick={run} disabled={loading || !query || !kbId}>
+            <Button onClick={run} disabled={loading || !query || !kbId} style={isMobile ? { width: '100%' } : undefined}>
               <Search size={14} /> {loading ? 'Searching…' : 'Search'}
             </Button>
           </div>

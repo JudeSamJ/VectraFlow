@@ -10,9 +10,11 @@ import { useChatStore } from '../../stores/chatStore';
 import { useKBStore } from '../../stores/kbStore';
 import { MessageBubble } from '../../components/chat/MessageBubble';
 import { CitationPanel } from '../../components/chat/CitationPanel';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { Citation } from '../../stores/chatStore';
 
 export function ChatPage() {
+  const isMobile = useIsMobile();
   const { activeKBId, setActiveKB } = useKBStore();
   const { messages, agentMode, addMessage, updateStreamingMessage, finalizeMessage, setAgentMode, clearMessages, restoreConversation } = useChatStore();
   const [input, setInput] = useState('');
@@ -124,12 +126,12 @@ export function ChatPage() {
   };
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - var(--topnav-height) - 48px)', gap: 16 }}>
+    <div style={{ display: 'flex', height: `calc(100vh - var(--topnav-height) - ${isMobile ? 32 : 48}px)`, gap: 16 }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* Toolbar: KB selector + New chat */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 0' }}>
-          <Database size={14} color="var(--text-muted)" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 0' }}>
+          <Database size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
           <select
             value={activeKBId ?? ''}
             onChange={e => setActiveKB(e.target.value || null)}
@@ -142,7 +144,8 @@ export function ChatPage() {
               fontSize: 'var(--text-sm)',
               outline: 'none',
               cursor: 'pointer',
-              minWidth: 220,
+              minWidth: isMobile ? 0 : 220,
+              flex: isMobile ? '1 1 auto' : undefined,
             }}
           >
             <option value="" style={{ background: '#1a1a1a', color: '#9a9a9a' }}>Select a knowledge base…</option>

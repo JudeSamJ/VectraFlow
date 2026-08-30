@@ -4,6 +4,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { analyticsApi } from '../../api/analytics';
 import { formatLatency, formatBytes } from '../../utils/formatters';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { CircuitBreakerState } from '../../api/types';
 
 const cbVariant: Record<CircuitBreakerState, 'ready' | 'error' | 'warning'> = {
@@ -11,6 +12,7 @@ const cbVariant: Record<CircuitBreakerState, 'ready' | 'error' | 'warning'> = {
 };
 
 export function AnalyticsPage() {
+  const isMobile = useIsMobile();
   const { data: metrics, isLoading } = useQuery({
     queryKey: ['analytics-metrics'],
     queryFn: () => analyticsApi.getMetrics().then(r => r.data),
@@ -39,7 +41,7 @@ export function AnalyticsPage() {
       <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Analytics</h1>
 
       {/* Metric cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
         {isLoading
           ? [1,2,3,4,5,6,7,8].map(i => <Skeleton key={i} height={80} />)
           : metricCards.map(([label, value]) => (
@@ -65,7 +67,7 @@ export function AnalyticsPage() {
           <p style={{ fontSize: 'var(--text-md)', fontWeight: 600, marginBottom: 16 }}>Circuit Breakers</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {cbs.map(cb => (
-              <div key={cb.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)' }}>
+              <div key={cb.name} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)' }}>
                 <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 500 }}>{cb.name}</span>
                 <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                   {cb.failure_count} failure{cb.failure_count !== 1 ? 's' : ''}
