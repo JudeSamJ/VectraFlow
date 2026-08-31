@@ -69,8 +69,10 @@ class Settings(BaseSettings):
     # llama-3.3-70b-versatile was deprecated by Groq; openai/gpt-oss-120b is
     # the recommended same-tier replacement (see console.groq.com/docs/deprecations).
     GROQ_MODEL: str = "openai/gpt-oss-120b"
-    # Natively multimodal Llama 4 model on Groq — used to OCR/describe page
-    # images and embedded figures during ingestion (see console.groq.com/docs/vision).
+    # Optional: a multimodal model on Groq, if your account has one enabled
+    # (console.groq.com/docs/vision — availability varies by account/plan).
+    # Only used when VISION_CAPTIONING_PROVIDER=groq. Leave the default as-is
+    # otherwise; it's simply unused.
     GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
 
     # Hugging Face TEI
@@ -80,10 +82,15 @@ class Settings(BaseSettings):
     COHERE_API_KEY: Optional[str] = None
     COHERE_RERANK_API_KEY: Optional[str] = None
 
-    # "groq" uses GROQ_VISION_MODEL above (already have a GROQ_API_KEY, so
-    # this works out of the box); "none" disables image/OCR handling during
-    # ingestion entirely — text-only PDFs/DOCX still parse normally either way.
-    VISION_CAPTIONING_PROVIDER: str = "groq"
+    # "tesseract" runs local OCR (no API key, no network call, no
+    # model-availability risk — just needs the tesseract-ocr system package,
+    # already in the Dockerfile) — this is what actually reads text out of a
+    # scanned/rasterized page during ingestion. "groq" uses GROQ_VISION_MODEL
+    # instead, if your Groq account has a multimodal model enabled — richer
+    # (can describe photos/charts, not just read text) but not guaranteed
+    # available. "none" disables image/OCR handling entirely — text-only
+    # PDFs/DOCX still parse normally either way.
+    VISION_CAPTIONING_PROVIDER: str = "tesseract"
     # Hard cap on vision-LLM calls per document — image captioning is far
     # more expensive per-call than text embedding, so this bounds both cost
     # and ingestion time for image-heavy files (e.g. a scanned PDF).

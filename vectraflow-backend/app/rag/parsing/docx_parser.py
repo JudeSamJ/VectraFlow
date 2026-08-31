@@ -3,7 +3,7 @@ import docx
 import structlog
 from typing import List, Dict, Any, Tuple, Optional
 from app.rag.parsing.base_parser import BaseParser, ParsedBlock
-from app.rag.parsing.image_captioner import VisionCaptioner
+from app.rag.parsing.base_captioner import BaseImageCaptioner
 
 logger = structlog.get_logger(__name__)
 
@@ -20,7 +20,7 @@ class DOCXParser(BaseParser):
     vision-capable LLM, if one is configured, so their content is searchable too.
     """
 
-    def __init__(self, vision_captioner: Optional[VisionCaptioner] = None, max_vision_calls: int = 12):
+    def __init__(self, vision_captioner: Optional[BaseImageCaptioner] = None, max_vision_calls: int = 12):
         self.vision_captioner = vision_captioner
         self.max_vision_calls = max_vision_calls
 

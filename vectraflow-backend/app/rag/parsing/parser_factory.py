@@ -3,7 +3,7 @@ from app.rag.parsing.base_parser import BaseParser
 from app.rag.parsing.pdf_parser import PDFParser
 from app.rag.parsing.docx_parser import DOCXParser
 from app.rag.parsing.html_parser import HTMLParser
-from app.rag.parsing.image_captioner import VisionCaptioner
+from app.rag.parsing.base_captioner import BaseImageCaptioner
 
 _MIME_AND_EXT_TO_PARSER: Dict[str, Type[BaseParser]] = {
     "application/pdf": PDFParser,
@@ -25,7 +25,7 @@ class ParserFactory:
     into whichever parsers support embedded-image/scanned-page captioning.
     """
 
-    def __init__(self, vision_captioner: Optional[VisionCaptioner] = None, max_vision_calls: int = 12):
+    def __init__(self, vision_captioner: Optional[BaseImageCaptioner] = None, max_vision_calls: int = 12):
         self.vision_captioner = vision_captioner
         self.max_vision_calls = max_vision_calls
 

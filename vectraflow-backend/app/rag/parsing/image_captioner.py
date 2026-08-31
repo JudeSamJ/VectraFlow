@@ -2,11 +2,12 @@ import base64
 import structlog
 from typing import Optional
 from app.rag.parsing.base_parser import ParsedBlock
+from app.rag.parsing.base_captioner import BaseImageCaptioner
 
 logger = structlog.get_logger(__name__)
 
 
-class VisionCaptioner:
+class VisionCaptioner(BaseImageCaptioner):
     """
     Uses a vision-capable LLM to turn page images / embedded figures into
     searchable text — either a literal transcription (for a scanned or

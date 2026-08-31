@@ -3,10 +3,13 @@ FROM python:3.11-slim
 WORKDIR /workspace
 
 # Install system dependencies
+# tesseract-ocr: local OCR for the ingestion pipeline's image/scanned-page
+# handling (no external API, so no vision-model availability to worry about).
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     curl \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies

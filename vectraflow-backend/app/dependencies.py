@@ -19,7 +19,9 @@ from app.rag.generation.generation_engine import GenerationEngine
 from app.rag.pipeline.rag_orchestrator import RAGOrchestrator
 from app.rag.pipeline.ingestion_pipeline import IngestionPipeline
 from app.rag.parsing.parser_factory import ParserFactory
+from app.rag.parsing.base_captioner import BaseImageCaptioner
 from app.rag.parsing.image_captioner import VisionCaptioner
+from app.rag.parsing.ocr_captioner import TesseractOCR
 from app.rag.chunking.semantic_chunker import SemanticChunker
 
 logger = structlog.get_logger(__name__)
@@ -72,7 +74,7 @@ def get_cohere_reranker() -> CohereReranker:
 
 
 @lru_cache()
-def get_vision_captioner() -> VisionCaptioner | None:
+def get_vision_captioner() -> BaseImageCaptioner | None:
     """
     Image/OCR handling for ingestion (scanned or design-tool PDF pages,
     embedded photos/charts). None disables it entirely — parsing still
@@ -80,6 +82,8 @@ def get_vision_captioner() -> VisionCaptioner | None:
     """
     if settings.VISION_CAPTIONING_PROVIDER == "none":
         return None
+    if settings.VISION_CAPTIONING_PROVIDER == "tesseract":
+        return TesseractOCR()
     if settings.VISION_CAPTIONING_PROVIDER == "groq":
         if not settings.GROQ_API_KEY:
             logger.warning("vision_captioning_disabled_no_groq_key")
