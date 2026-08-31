@@ -34,7 +34,7 @@ class IngestionPipeline:
         pipeline_config = getattr(kb, "pipeline_config", None) or {}
 
         # 1. PARSE
-        parser = ParserFactory.get_parser(
+        parser = self.parser_factory.get_parser(
             getattr(document, "mime_type", "text/plain"),
             getattr(document, "filename", getattr(document, "file_name", "file.txt")),
         )

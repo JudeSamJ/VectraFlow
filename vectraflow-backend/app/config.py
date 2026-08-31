@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     # llama-3.3-70b-versatile was deprecated by Groq; openai/gpt-oss-120b is
     # the recommended same-tier replacement (see console.groq.com/docs/deprecations).
     GROQ_MODEL: str = "openai/gpt-oss-120b"
+    # Natively multimodal Llama 4 model on Groq — used to OCR/describe page
+    # images and embedded figures during ingestion (see console.groq.com/docs/vision).
+    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
 
     # Hugging Face TEI
     HUGGINGFACE_TEI_ENDPOINT: Optional[str] = None
@@ -77,7 +80,14 @@ class Settings(BaseSettings):
     COHERE_API_KEY: Optional[str] = None
     COHERE_RERANK_API_KEY: Optional[str] = None
 
-    VISION_CAPTIONING_PROVIDER: str = "none"
+    # "groq" uses GROQ_VISION_MODEL above (already have a GROQ_API_KEY, so
+    # this works out of the box); "none" disables image/OCR handling during
+    # ingestion entirely — text-only PDFs/DOCX still parse normally either way.
+    VISION_CAPTIONING_PROVIDER: str = "groq"
+    # Hard cap on vision-LLM calls per document — image captioning is far
+    # more expensive per-call than text embedding, so this bounds both cost
+    # and ingestion time for image-heavy files (e.g. a scanned PDF).
+    MAX_VISION_CALLS_PER_DOCUMENT: int = 12
 
     # Governance & PII
     PII_DETECTION_ENABLED: bool = True

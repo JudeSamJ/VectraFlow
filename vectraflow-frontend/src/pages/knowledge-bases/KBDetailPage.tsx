@@ -71,7 +71,20 @@ export function KBDetailPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, flex: 1, minWidth: 0, overflowWrap: 'break-word' }}>{kb.name}</h1>
+        <h1
+          style={{
+            fontSize: 'var(--text-lg)',
+            fontWeight: 600,
+            flex: isMobile ? undefined : 1,
+            flexBasis: isMobile ? '100%' : undefined,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {kb.name}
+        </h1>
         <Badge variant={statusVariant(kb.status)}>{kb.status}</Badge>
         <Button variant="secondary" size="sm" onClick={() => reindex.mutate()} disabled={reindex.isPending}>
           <RefreshCw size={13} /> Reindex
