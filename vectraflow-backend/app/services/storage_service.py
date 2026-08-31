@@ -8,10 +8,25 @@ from app.config import settings
 
 logger = structlog.get_logger(__name__)
 
-# Raw (non-image/video) files, stored as "authenticated" assets so they're
-# not reachable by guessing a URL — only via a signed URL we generate.
+# Raw (non-image/video) files.
+#
+# NOTE: this used to store assets as delivery type "authenticated" and
+# generate a "signed" URL via cloudinary.utils.cloudinary_url(sign_url=True)
+# to read them back. That signing (`sign_url`) is Cloudinary's anti-tampering
+# signature for *transformations* — it does NOT grant access to an
+# "authenticated"-type asset, which needs either a paid token-auth add-on or
+# a properly Admin-API-signed download URL (cloudinary.utils.private_download_url).
+# Using the wrong mechanism made every download 401, unconditionally — this
+# is why PDFs (and in practice most uploads) were failing to ingest at all.
+#
+# Fixed by using plain "upload" (public) delivery instead: the URL is
+# deterministic and needs no signature, so there's nothing to get wrong here.
+# Each object's path already embeds two random UUIDs (knowledge base id +
+# file id), so it isn't practically guessable/enumerable even though it's
+# not access-controlled the way a truly private asset would be — the same
+# threat model as an S3/GCS object with a random key and no public listing.
 RESOURCE_TYPE = "raw"
-DELIVERY_TYPE = "authenticated"
+DELIVERY_TYPE = "upload"
 
 
 class StorageService:
@@ -56,17 +71,15 @@ class StorageService:
 
     def generate_presigned_url(self, object_name: str, expiry_seconds: int = 3600) -> str:
         """
-        Signed URL for a private object. Note: unlike an S3 presigned URL,
-        this doesn't carry a hard time-based expiry on Cloudinary's free
-        plan (that needs the separate token-auth add-on) — the signature
-        just ties the URL to this app's API secret, so it isn't guessable.
-        expiry_seconds is accepted for interface parity with callers.
+        Public delivery URL for the object — deterministic, no signature
+        needed (see the DELIVERY_TYPE note above for why). expiry_seconds is
+        accepted for interface parity with callers; it doesn't apply here
+        since there's no time-limited signature to expire.
         """
         url, _ = cloudinary.utils.cloudinary_url(
             object_name,
             resource_type=RESOURCE_TYPE,
             type=DELIVERY_TYPE,
-            sign_url=True,
         )
         return url
 
