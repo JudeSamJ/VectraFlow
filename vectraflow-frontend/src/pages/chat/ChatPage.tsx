@@ -5,7 +5,8 @@ import { useLocation } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../api/client';
 import { kbApi } from '../../api/knowledgeBases';
-import { chatApi } from '../../api/chat';
+import { chatApi, toCitation } from '../../api/chat';
+import type { ApiCitation } from '../../api/chat';
 import { useChatStore } from '../../stores/chatStore';
 import { useKBStore } from '../../stores/kbStore';
 import { MessageBubble } from '../../components/chat/MessageBubble';
@@ -71,7 +72,7 @@ export function ChatPage() {
           id: m.id,
           role: m.role as 'user' | 'assistant',
           content: m.content,
-          citations: m.citations?.items ?? [],
+          citations: (m.citations?.items ?? []).map(toCitation),
         }));
       restoreConversation(convId, kbId ?? activeKBId ?? '', restored);
     }).catch(() => {}).finally(() => {
@@ -125,7 +126,7 @@ export function ChatPage() {
     setStreaming(true);
 
     try {
-      const res = await apiClient.post<{ answer: string; citations: Citation[]; conversation_id?: string }>(
+      const res = await apiClient.post<{ answer: string; citations: ApiCitation[]; conversation_id?: string }>(
         `/knowledge-bases/${activeKBId}/chat/sync`,
         { query, conversation_id: convId }
       );
@@ -136,7 +137,7 @@ export function ChatPage() {
         updateStreamingMessage(assistantId, (i === 0 ? '' : ' ') + words[i]);
         if (i % 8 === 7) await new Promise(r => setTimeout(r, 8));
       }
-      finalizeMessage(assistantId, citations ?? []);
+      finalizeMessage(assistantId, (citations ?? []).map(toCitation));
       // Invalidate conversations list so History page reflects new chat
       qc.invalidateQueries({ queryKey: ['conversations'] });
     } catch (err: any) {

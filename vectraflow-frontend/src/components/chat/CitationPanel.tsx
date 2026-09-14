@@ -1,4 +1,4 @@
-import { X, FileText, ExternalLink } from 'lucide-react';
+import { X, FileText, Database, ExternalLink } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import type { Citation } from '../../stores/chatStore';
@@ -43,7 +43,20 @@ export function CitationPanel({ citation, onClose }: Props) {
         }}
       >
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Citation [{citation.index}]</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Citation [{citation.index}]</span>
+          {citation.source_type && (
+            <span style={{
+              fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em',
+              padding: '2px 6px', borderRadius: 'var(--radius-sm)',
+              color: citation.source_type === 'd365_record' ? '#a78bfa' : 'var(--accent)',
+              background: citation.source_type === 'd365_record' ? 'rgba(167,139,250,0.1)' : 'rgba(0,192,122,0.08)',
+              border: `1px solid ${citation.source_type === 'd365_record' ? 'rgba(167,139,250,0.25)' : 'rgba(0,192,122,0.2)'}`,
+            }}>
+              {citation.source_type === 'd365_record' ? 'D365 Record' : 'Document'}
+            </span>
+          )}
+        </div>
         <Button variant="icon" onClick={onClose}><X size={14} /></Button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -54,7 +67,11 @@ export function CitationPanel({ citation, onClose }: Props) {
         {/* Metadata */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <FileText size={14} color="var(--text-muted)" />
+            {citation.source_type === 'd365_record' ? (
+              <Database size={14} color="var(--text-muted)" />
+            ) : (
+              <FileText size={14} color="var(--text-muted)" />
+            )}
             <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>{citation.document_name}</span>
           </div>
           {citation.page_number && (
@@ -64,9 +81,18 @@ export function CitationPanel({ citation, onClose }: Props) {
             Score: <span style={{ color: 'var(--accent)' }}>{citation.score.toFixed(3)}</span>
           </p>
         </div>
-        <Button variant="secondary" size="sm" style={{ alignSelf: 'flex-start' }}>
-          <ExternalLink size={12} /> Go to Document
-        </Button>
+        {citation.source_type === 'd365_record' && citation.source_reference ? (
+          <Button
+            variant="secondary" size="sm" style={{ alignSelf: 'flex-start' }}
+            onClick={() => window.open(citation.source_reference, '_blank', 'noopener,noreferrer')}
+          >
+            <ExternalLink size={12} /> Open in D365
+          </Button>
+        ) : (
+          <Button variant="secondary" size="sm" style={{ alignSelf: 'flex-start' }}>
+            <ExternalLink size={12} /> Go to Document
+          </Button>
+        )}
       </div>
       </div>
     </>

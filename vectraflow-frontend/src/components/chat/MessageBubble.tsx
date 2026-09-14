@@ -119,6 +119,34 @@ function buildComponents(citations: Citation[], onCitationClick: (c: Citation) =
   };
 }
 
+function SourcesRow({ citations, onCitationClick }: { citations: Citation[]; onCitationClick: (c: Citation) => void }) {
+  if (!citations.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginRight: 2 }}>Sources:</span>
+      {citations.map(c => (
+        <button
+          key={c.id || c.index}
+          onClick={() => onCitationClick(c)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            background: c.source_type === 'd365_record' ? 'rgba(167,139,250,0.08)' : 'rgba(0,192,122,0.08)',
+            border: `1px solid ${c.source_type === 'd365_record' ? 'rgba(167,139,250,0.2)' : 'rgba(0,192,122,0.2)'}`,
+            color: c.source_type === 'd365_record' ? '#a78bfa' : 'var(--accent)',
+            borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)',
+            padding: '3px 8px', cursor: 'pointer', maxWidth: 220,
+          }}
+          title={c.document_name}
+        >
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            [{c.index}] {c.document_name}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function MessageBubble({ message, onCitationClick }: Props) {
   const isUser = message.role === 'user';
   const citations = message.citations ?? [];
@@ -166,6 +194,9 @@ export function MessageBubble({ message, onCitationClick }: Props) {
             ))}
           </div>
         ) : content}
+        {!isUser && !message.isStreaming && (
+          <SourcesRow citations={citations} onCitationClick={onCitationClick} />
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,12 @@ export interface Citation {
   page_number?: number;
   document_id: string;
   score: number;
+  // Structured source metadata — additive. source_type distinguishes an
+  // uploaded document from a synced D365 F&O record; source_reference is
+  // a page number (documents) or a direct OData record link (D365).
+  source_type?: 'document' | 'd365_record';
+  source_name?: string;
+  source_reference?: string;
 }
 
 export interface Message {

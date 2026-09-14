@@ -32,6 +32,7 @@ from app.rag.retrieval.retrieval_engine import RetrievalEngine
 from app.rag.indexing.milvus_index_manager import MilvusIndexManager
 from app.services.capacity_service import total_storage_bytes
 from app.core.audit import record_audit_log
+from app.rag.generation.citation_enricher import enrich_citations
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -49,9 +50,27 @@ class SyncChatRequest(BaseModel):
     chat_history: Optional[List[dict]] = None
 
 
+class CitationItem(BaseModel):
+    """
+    Structured citation metadata for one retrieved chunk an answer drew
+    on — source_type/source_name/source_reference distinguish an uploaded
+    document from a synced D365 F&O record (see citation_enricher.py).
+    """
+    index: int
+    chunk_id: str
+    document_id: Optional[str] = None
+    source_type: str  # "document" | "d365_record"
+    source_name: str
+    source_reference: Optional[str] = None
+    page_number: Optional[int] = None
+    section_heading: Optional[str] = None
+    excerpt: str
+    score: float
+
+
 class SyncChatResponse(BaseModel):
     answer: str
-    citations: List[dict] = []
+    citations: List[CitationItem] = []
     conversation_id: Optional[uuid.UUID] = None
 
 
@@ -192,6 +211,7 @@ async def sync_chat(
         raise HTTPException(status_code=502, detail=pipeline_error)
 
     answer = "".join(answer_parts)
+    citations = await enrich_citations(citations, db)
 
     # Persist messages if conversation exists
     if conv:

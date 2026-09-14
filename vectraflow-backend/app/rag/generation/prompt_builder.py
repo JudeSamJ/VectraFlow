@@ -39,12 +39,21 @@ class PromptBuilder:
             context_parts.append(node_text)
             current_tokens += node_tokens
             
-            # Store metadata for the frontend
+            # Store metadata for the frontend — source_type/excerpt are
+            # additive (see citation_enricher.py, which turns source_type
+            # into the "document"/"d365_record" + source_name/
+            # source_reference shape the API response exposes); "index" is
+            # what lets the frontend match a [1] marker in the answer text
+            # back to this citation once these dicts flatten into a list.
+            excerpt = node.text[:240] + ("…" if len(node.text) > 240 else "")
             citations[citation_id] = {
+                "index": citation_id,
                 "chunk_id": node.chunk_id,
                 "document_id": node.metadata.get("document_id"),
                 "page_number": node.metadata.get("page_number"),
                 "section_heading": node.metadata.get("section_heading"),
+                "source_type": node.metadata.get("source_type"),
+                "excerpt": excerpt,
                 "score": node.score
             }
             
