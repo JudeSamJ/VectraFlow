@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:teams": "tsc -b && vite build --config vite.teams.config.ts",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@microsoft/teams-js": "^2.56.0",
     "@tanstack/react-query": "^5.101.2",
     "axios": "^1.18.1",
     "date-fns": "^4.4.0",

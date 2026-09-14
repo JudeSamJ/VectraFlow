@@ -1,0 +1,39 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "00000000-0000-0000-0000-000000000000",
+  "developer": {
+    "name": "VectraFlow",
+    "websiteUrl": "https://REPLACE_WITH_DEPLOYED_HOSTNAME",
+    "privacyUrl": "https://REPLACE_WITH_DEPLOYED_HOSTNAME/privacy",
+    "termsOfUseUrl": "https://REPLACE_WITH_DEPLOYED_HOSTNAME/terms"
+  },
+  "name": {
+    "short": "VectraFlow",
+    "full": "VectraFlow Knowledge Assistant"
+  },
+  "description": {
+    "short": "Chat with your VectraFlow knowledge bases from Teams.",
+    "full": "Embeds the VectraFlow RAG chat assistant as a Teams tab so you can ask questions against your organization's knowledge bases — including data synced from Dynamics 365 F&O — without leaving Teams."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#2563EB",
+  "staticTabs": [
+    {
+      "entityId": "vectraflow-chat",
+      "name": "VectraFlow",
+      "contentUrl": "https://REPLACE_WITH_DEPLOYED_HOSTNAME/teams.html",
+      "websiteUrl": "https://REPLACE_WITH_DEPLOYED_HOSTNAME/teams.html",
+      "scopes": ["personal"]
+    }
+  ],
+  "validDomains": ["REPLACE_WITH_DEPLOYED_HOSTNAME"],
+  "webApplicationInfo": {
+    "id": "REPLACE_WITH_ENTRA_APP_CLIENT_ID",
+    "resource": "api://REPLACE_WITH_DEPLOYED_HOSTNAME/REPLACE_WITH_ENTRA_APP_CLIENT_ID"
+  }
+}
