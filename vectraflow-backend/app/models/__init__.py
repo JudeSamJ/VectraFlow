@@ -10,6 +10,7 @@ from .pii_policy import PIIPolicy, PIIAction
 from .conversation import Conversation, Message, ConversationStatus, MessageRole
 from .audit_log import AuditLog
 from .password_reset_token import PasswordResetToken
+from .d365_sync_state import D365SyncState
 
 __all__ = [
     "Base",
@@ -41,4 +42,5 @@ __all__ = [
     "MessageRole",
     "AuditLog",
     "PasswordResetToken",
+    "D365SyncState",
 ]

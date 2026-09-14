@@ -14,7 +14,7 @@ celery_app = Celery(
     "synapse_worker",
     broker=redis_url,
     backend=redis_url,
-    include=["app.tasks.ingestion_tasks"],
+    include=["app.tasks.ingestion_tasks", "app.tasks.d365_sync_tasks"],
 )
 
 _use_ssl = redis_url.startswith("rediss://")

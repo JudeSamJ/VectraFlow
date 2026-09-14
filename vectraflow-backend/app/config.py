@@ -61,6 +61,17 @@ class Settings(BaseSettings):
     RESEND_API_KEY: Optional[str] = None
     EMAIL_FROM: str = "VectraFlow <onboarding@resend.dev>"
 
+    # Dynamics 365 Finance & Operations — OData ingestion connector.
+    # This is a separate, additive ingestion route alongside the existing
+    # document-upload path; it stays fully disabled (sync endpoints return
+    # 501) unless all four of these are set. Uses an Azure AD / Entra ID
+    # app registration with the "client credentials" (app-only) grant —
+    # a different registration/flow than any interactive user SSO login.
+    D365_BASE_URL: Optional[str] = None       # e.g. https://yourorg.operations.dynamics.com
+    D365_TENANT_ID: Optional[str] = None
+    D365_CLIENT_ID: Optional[str] = None
+    D365_CLIENT_SECRET: Optional[str] = None
+
     # Encryption
     ENCRYPTION_KEY: str
 
@@ -147,6 +158,14 @@ class Settings(BaseSettings):
     @property
     def celery_backend(self) -> str:
         return self.CELERY_RESULT_BACKEND or self.REDIS_URL
+
+    @property
+    def d365_enabled(self) -> bool:
+        return bool(self.D365_BASE_URL and self.D365_TENANT_ID and self.D365_CLIENT_ID and self.D365_CLIENT_SECRET)
+
+    @property
+    def d365_resource_scope(self) -> str:
+        return f"{(self.D365_BASE_URL or '').rstrip('/')}/.default"
 
 
 settings = Settings()
