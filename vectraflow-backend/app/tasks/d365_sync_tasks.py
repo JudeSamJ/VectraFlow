@@ -11,7 +11,7 @@ import hashlib
 import asyncio
 import structlog
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Dict, Optional
 
 from app.celery_worker import celery_app
 from app.config import settings
@@ -19,6 +19,7 @@ from app.integrations.d365.auth import D365TokenProvider, D365AuthError
 from app.integrations.d365.client import D365ODataClient, D365ODataError
 from app.integrations.d365.entity_config import get_entity_config
 from app.integrations.d365.text_templater import entity_record_to_text
+from app.rag.chunking.entity_record_chunker import EntityRecordChunker, entity_record_to_block
 
 logger = structlog.get_logger(__name__)
 
@@ -60,8 +61,6 @@ async def run_d365_sync(kb_id: str, entity_name: str, max_records: Optional[int]
     from sqlalchemy import select
     from app.models.knowledge_base import KnowledgeBase
     from app.models.d365_sync_state import D365SyncState
-    from app.rag.chunking.base_chunker import Chunk
-    from app.core.token_counter import token_counter
     from app.dependencies import get_embedding_provider, get_milvus_index_manager
 
     db_url = os.getenv("DATABASE_URL") or settings.DATABASE_URL
@@ -114,21 +113,37 @@ async def run_d365_sync(kb_id: str, entity_name: str, max_records: Optional[int]
                     index_manager = get_milvus_index_manager()
                     await index_manager.create_collection(kb.milvus_collection_name, dimensions=384)
 
-                    texts = [entity_record_to_text(r, entity_config) for r in records]
-                    vectors = await embedder.embed_batch(texts)
-
-                    for record, text, vector in zip(records, texts, vectors):
+                    # 1. Template each record into one natural-language sentence
+                    #    (app.integrations.d365.text_templater), then wrap it as a
+                    #    ParsedBlock keyed by [entity heading, record_id] so the
+                    #    chunker below never merges two different records into the
+                    #    same chunk — each record still maps to its own document_id.
+                    blocks = []
+                    heading = entity_config.heading or entity_config.entity_name
+                    for record in records:
                         record_id = str(record.get(entity_config.id_field, uuid.uuid4()))
-                        chunk = Chunk(
-                            text=text,
-                            token_count=token_counter.count(text),
-                            metadata={
-                                "type": "d365",
-                                "heading_path": [entity_config.heading or entity_config.entity_name],
-                                "page_number": None,
-                                "tags": ["d365", entity_config.entity_name],
-                            },
-                        )
+                        text = entity_record_to_text(record, entity_config)
+                        blocks.append(entity_record_to_block(text, heading_path=[heading, record_id]))
+
+                    # 2. Dedicated structured-data chunking strategy (separate
+                    #    module from SemanticChunker) — groups/splits by that same
+                    #    [heading, record_id] key on a token budget.
+                    entity_chunks = await EntityRecordChunker().chunk(blocks, {"max_chunk_size": 512})
+
+                    # 3. Embed all chunks in one batch, then upsert grouped back by
+                    #    record — a record only ever produces multiple chunks if its
+                    #    templated sentence alone exceeds the token budget, which is
+                    #    unusual for structured fields but the chunker supports it.
+                    vectors = await embedder.embed_batch([c.text for c in entity_chunks])
+
+                    chunks_by_record: Dict[str, list] = {}
+                    vectors_by_record: Dict[str, list] = {}
+                    for chunk, vector in zip(entity_chunks, vectors):
+                        record_id = chunk.metadata["heading_path"][-1]
+                        chunks_by_record.setdefault(record_id, []).append(chunk)
+                        vectors_by_record.setdefault(record_id, []).append(vector)
+
+                    for record_id, record_chunks in chunks_by_record.items():
                         # Milvus's document_id column is VARCHAR(36) — the same
                         # width a document-upload UUID uses — so a composed
                         # "d365:<entity>:<record_id>" string would overflow for
@@ -149,7 +164,7 @@ async def run_d365_sync(kb_id: str, entity_name: str, max_records: Optional[int]
                         except Exception:
                             pass
                         await index_manager.upsert(
-                            kb.milvus_collection_name, document_id, [chunk], [vector]
+                            kb.milvus_collection_name, document_id, record_chunks, vectors_by_record[record_id]
                         )
 
                 sync_state.last_synced_at = datetime.now(timezone.utc)
