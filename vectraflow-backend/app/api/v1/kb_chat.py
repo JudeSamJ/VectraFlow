@@ -33,6 +33,9 @@ from app.rag.indexing.milvus_index_manager import MilvusIndexManager
 from app.services.capacity_service import total_storage_bytes
 from app.core.audit import record_audit_log
 from app.rag.generation.citation_enricher import enrich_citations
+from app.services.action_intent import detect_action_intent
+from app.services import action_handler
+from app.services.action_handler import ActionValidationError
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -68,10 +71,21 @@ class CitationItem(BaseModel):
     score: float
 
 
+class PendingActionInfo(BaseModel):
+    """Present only when the intent-detection step (see sync_chat) routed
+    this message to the D365 action layer instead of the RAG flow."""
+    action_log_id: uuid.UUID
+    action_name: str
+    parameters: dict
+
+
 class SyncChatResponse(BaseModel):
     answer: str
     citations: List[CitationItem] = []
     conversation_id: Optional[uuid.UUID] = None
+    # Additive: absent/false for every existing answer-only response.
+    requires_action_confirmation: bool = False
+    pending_action: Optional[PendingActionInfo] = None
 
 
 class RetrieveRequest(BaseModel):
@@ -146,6 +160,7 @@ async def sync_chat(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator),
+    llm: BaseLLMProvider = Depends(get_llm_provider),
 ):
     kb = await _get_kb(kb_id, current_user, db)
 
@@ -159,6 +174,55 @@ async def sync_chat(
             )
         )
         conv = result.scalars().first()
+
+    # ── Intent-detection routing step (Step 2's D365 action layer) ──
+    # The only change this endpoint makes for the action layer: classify
+    # the message *before* touching retrieval/generation at all, and if
+    # (and only if) it's a fully-specified whitelisted action request,
+    # stage it (app/services/action_handler.py) and return immediately —
+    # nothing below this block runs, and no write to D365 happens here.
+    # Any other message (a question, an unrecognized/underspecified
+    # action) falls straight through to the existing RAG flow, unchanged.
+    action_intent = await detect_action_intent(req.query, llm)
+    if action_intent.is_action:
+        if action_intent.rejection_reason:
+            answer = action_intent.rejection_reason
+            pending_action = None
+        else:
+            try:
+                staged = await action_handler.stage_action(
+                    action_name=action_intent.action_name,
+                    raw_parameters=action_intent.parameters,
+                    user=current_user,
+                    knowledge_base_id=kb.id,
+                    db=db,
+                )
+                answer = (
+                    f"I'd like to run **{staged.action_name}** with these parameters:\n\n"
+                    + "\n".join(f"- **{k}**: {v}" for k, v in staged.parameters.items())
+                    + "\n\nConfirm to proceed, or cancel."
+                )
+                pending_action = PendingActionInfo(
+                    action_log_id=staged.id, action_name=staged.action_name, parameters=staged.parameters
+                )
+            except ActionValidationError as exc:
+                answer = str(exc)
+                pending_action = None
+
+        if conv:
+            from datetime import datetime, timezone
+            db.add(Message(conversation_id=conv.id, role=MessageRole.user, content=req.query))
+            db.add(Message(conversation_id=conv.id, role=MessageRole.assistant, content=answer, citations=None))
+            conv.updated_at = datetime.now(timezone.utc)
+            await db.commit()
+
+        return SyncChatResponse(
+            answer=answer,
+            citations=[],
+            conversation_id=conv.id if conv else None,
+            requires_action_confirmation=pending_action is not None,
+            pending_action=pending_action,
+        )
 
     # Build chat history from conversation messages
     history = req.chat_history or []

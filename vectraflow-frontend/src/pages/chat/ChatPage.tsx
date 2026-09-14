@@ -7,6 +7,7 @@ import { apiClient } from '../../api/client';
 import { kbApi } from '../../api/knowledgeBases';
 import { chatApi, toCitation } from '../../api/chat';
 import type { ApiCitation } from '../../api/chat';
+import { actionsApi } from '../../api/actions';
 import { useChatStore } from '../../stores/chatStore';
 import { useKBStore } from '../../stores/kbStore';
 import { MessageBubble } from '../../components/chat/MessageBubble';
@@ -30,6 +31,7 @@ export function ChatPage() {
     messages, agentMode, addMessage, updateStreamingMessage, finalizeMessage,
     setAgentMode, clearMessages, restoreConversation,
     conversationId, kbId: conversationKBId, setConversationId,
+    setPendingAction, resolvePendingAction,
   } = useChatStore();
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -126,11 +128,15 @@ export function ChatPage() {
     setStreaming(true);
 
     try {
-      const res = await apiClient.post<{ answer: string; citations: ApiCitation[]; conversation_id?: string }>(
+      const res = await apiClient.post<{
+        answer: string; citations: ApiCitation[]; conversation_id?: string;
+        requires_action_confirmation?: boolean;
+        pending_action?: { action_log_id: string; action_name: string; parameters: Record<string, unknown> } | null;
+      }>(
         `/knowledge-bases/${activeKBId}/chat/sync`,
         { query, conversation_id: convId }
       );
-      const { answer, citations } = res.data;
+      const { answer, citations, requires_action_confirmation, pending_action } = res.data;
       // Animate word-by-word
       const words = answer.split(' ');
       for (let i = 0; i < words.length; i++) {
@@ -138,6 +144,17 @@ export function ChatPage() {
         if (i % 8 === 7) await new Promise(r => setTimeout(r, 8));
       }
       finalizeMessage(assistantId, (citations ?? []).map(toCitation));
+      // The intent-detection routing step (see kb_chat.py's sync_chat)
+      // staged a D365 action instead of answering — surface the
+      // confirm/cancel card under this message rather than treating it as
+      // a normal RAG answer.
+      if (requires_action_confirmation && pending_action) {
+        setPendingAction(assistantId, {
+          actionLogId: pending_action.action_log_id,
+          actionName: pending_action.action_name,
+          parameters: pending_action.parameters,
+        });
+      }
       // Invalidate conversations list so History page reflects new chat
       qc.invalidateQueries({ queryKey: ['conversations'] });
     } catch (err: any) {
@@ -146,6 +163,41 @@ export function ChatPage() {
     } finally {
       setStreaming(false);
     }
+  };
+
+  const handleConfirmAction = async (messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg?.pendingAction || !activeKBId) return;
+    try {
+      const res = await actionsApi.confirm(activeKBId, msg.pendingAction.actionLogId);
+      resolvePendingAction(messageId, 'confirmed');
+      const { status, result, error_message } = res.data;
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: status === 'executed'
+          ? `Done — ${msg.pendingAction.actionName} executed.${result ? '\n\n```json\n' + JSON.stringify(result, null, 2) + '\n```' : ''}`
+          : `The action failed: ${error_message ?? 'unknown error'}`,
+      });
+    } catch (err: any) {
+      resolvePendingAction(messageId, 'confirmed');
+      addMessage({
+        id: crypto.randomUUID(), role: 'assistant',
+        content: 'Error executing the action: ' + (err?.response?.data?.detail ?? err?.message ?? 'Unknown error'),
+      });
+    }
+  };
+
+  const handleCancelAction = async (messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg?.pendingAction || !activeKBId) return;
+    try {
+      await actionsApi.cancel(activeKBId, msg.pendingAction.actionLogId);
+    } catch {
+      // Still reflect the cancellation locally even if the request failed —
+      // there's nothing destructive to undo since nothing was executed.
+    }
+    resolvePendingAction(messageId, 'cancelled');
   };
 
   return (
@@ -244,7 +296,13 @@ export function ChatPage() {
             </div>
           )}
           {messages.map(msg => (
-            <MessageBubble key={msg.id} message={msg} onCitationClick={setActiveCitation} />
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              onCitationClick={setActiveCitation}
+              onConfirmAction={handleConfirmAction}
+              onCancelAction={handleCancelAction}
+            />
           ))}
           <div ref={bottomRef} />
         </div>

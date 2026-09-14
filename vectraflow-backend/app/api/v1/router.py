@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.api.v1 import auth, users, chat, agentic, document_versions, evaluations, ingest
 from app.api.v1 import knowledge_bases, conversations, kb_chat, analytics, admin, governance
-from app.api.v1 import d365
+from app.api.v1 import d365, actions
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -19,3 +19,5 @@ api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(governance.router, tags=["governance"])
 api_router.include_router(d365.router, prefix="/knowledge-bases", tags=["d365"])
 api_router.include_router(d365.global_router, prefix="/d365", tags=["d365"])
+api_router.include_router(actions.router, prefix="/knowledge-bases", tags=["d365-actions"])
+api_router.include_router(actions.global_router, prefix="/d365-actions", tags=["d365-actions"])

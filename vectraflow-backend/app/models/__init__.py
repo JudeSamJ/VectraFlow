@@ -11,6 +11,7 @@ from .conversation import Conversation, Message, ConversationStatus, MessageRole
 from .audit_log import AuditLog
 from .password_reset_token import PasswordResetToken
 from .d365_sync_state import D365SyncState
+from .d365_action_log import D365ActionLog, D365ActionStatus
 
 __all__ = [
     "Base",
@@ -43,4 +44,6 @@ __all__ = [
     "AuditLog",
     "PasswordResetToken",
     "D365SyncState",
+    "D365ActionLog",
+    "D365ActionStatus",
 ]

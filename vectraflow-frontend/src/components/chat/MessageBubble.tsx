@@ -3,10 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import type { Message, Citation } from '../../stores/chatStore';
+import { ActionConfirmCard } from './ActionConfirmCard';
 
 interface Props {
   message: Message;
   onCitationClick: (c: Citation) => void;
+  onConfirmAction?: (messageId: string) => Promise<void>;
+  onCancelAction?: (messageId: string) => Promise<void>;
 }
 
 // Turn bracket citation markers like [1] into markdown links pointing at a
@@ -147,7 +150,7 @@ function SourcesRow({ citations, onCitationClick }: { citations: Citation[]; onC
   );
 }
 
-export function MessageBubble({ message, onCitationClick }: Props) {
+export function MessageBubble({ message, onCitationClick, onConfirmAction, onCancelAction }: Props) {
   const isUser = message.role === 'user';
   const citations = message.citations ?? [];
 
@@ -196,6 +199,13 @@ export function MessageBubble({ message, onCitationClick }: Props) {
         ) : content}
         {!isUser && !message.isStreaming && (
           <SourcesRow citations={citations} onCitationClick={onCitationClick} />
+        )}
+        {!isUser && message.pendingAction && onConfirmAction && onCancelAction && (
+          <ActionConfirmCard
+            pendingAction={message.pendingAction}
+            onConfirm={() => onConfirmAction(message.id)}
+            onCancel={() => onCancelAction(message.id)}
+          />
         )}
       </div>
     </div>

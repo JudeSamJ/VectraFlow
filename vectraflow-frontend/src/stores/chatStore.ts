@@ -16,6 +16,15 @@ export interface Citation {
   source_reference?: string;
 }
 
+export interface PendingAction {
+  actionLogId: string;
+  actionName: string;
+  parameters: Record<string, unknown>;
+  // Set once the user has confirmed or cancelled — hides the buttons and
+  // lets the follow-up "Action executed/cancelled" message stand on its own.
+  resolved?: 'confirmed' | 'cancelled';
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -23,6 +32,7 @@ export interface Message {
   citations?: Citation[];
   isStreaming?: boolean;
   stages?: string[];
+  pendingAction?: PendingAction;
 }
 
 interface ChatState {
@@ -39,6 +49,8 @@ interface ChatState {
   addMessage: (msg: Message) => void;
   updateStreamingMessage: (id: string, token: string) => void;
   finalizeMessage: (id: string, citations: Citation[]) => void;
+  setPendingAction: (id: string, pendingAction: PendingAction | undefined) => void;
+  resolvePendingAction: (id: string, resolution: 'confirmed' | 'cancelled') => void;
   setAgentMode: (on: boolean) => void;
   clearMessages: () => void;
   restoreConversation: (conversationId: string, kbId: string, messages: Message[]) => void;
@@ -61,6 +73,16 @@ export const useChatStore = create<ChatState>(set => ({
     set(s => ({
       messages: s.messages.map(m =>
         m.id === id ? { ...m, isStreaming: false, citations } : m
+      ),
+    })),
+  setPendingAction: (id, pendingAction) =>
+    set(s => ({
+      messages: s.messages.map(m => (m.id === id ? { ...m, pendingAction } : m)),
+    })),
+  resolvePendingAction: (id, resolution) =>
+    set(s => ({
+      messages: s.messages.map(m =>
+        m.id === id && m.pendingAction ? { ...m, pendingAction: { ...m.pendingAction, resolved: resolution } } : m
       ),
     })),
   setAgentMode: on => set({ agentMode: on }),
