@@ -81,3 +81,48 @@ async def exchange_github_code(code: str) -> dict:
     if not email:
         raise OAuthError("Could not obtain an email address from GitHub — make sure your GitHub account has a public or primary email")
     return {"email": email, "name": user_data.get("name") or user_data.get("login")}
+
+
+async def exchange_entra_code(code: str) -> dict:
+    """
+    Exchanges an OAuth authorization code for the user's email/name via
+    Microsoft Entra ID (Azure AD) — a separate app registration and OAuth2
+    authorization-code flow from the D365 F&O connector's client-credentials
+    (app-only) flow; this one is interactive user sign-in.
+    """
+    redirect_uri = f"{settings.OAUTH_REDIRECT_BASE_URL}/api/v1/auth/entra/callback"
+    token_url = f"https://login.microsoftonline.com/{settings.ENTRA_TENANT_ID}/oauth2/v2.0/token"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        token_resp = await client.post(
+            token_url,
+            data={
+                "code": code,
+                "client_id": settings.ENTRA_CLIENT_ID,
+                "client_secret": settings.ENTRA_CLIENT_SECRET,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+                "scope": "openid email profile User.Read",
+            },
+        )
+        if token_resp.status_code != 200:
+            logger.error("entra_token_exchange_failed", status=token_resp.status_code, body=token_resp.text[:300])
+            raise OAuthError("Entra ID token exchange failed")
+        access_token = token_resp.json().get("access_token")
+        if not access_token:
+            raise OAuthError("Entra ID token exchange returned no access_token")
+
+        profile_resp = await client.get(
+            "https://graph.microsoft.com/v1.0/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if profile_resp.status_code != 200:
+            raise OAuthError("Failed to fetch Microsoft Graph profile")
+        data = profile_resp.json()
+
+    # "mail" is unset for some account types (e.g. certain guest/B2B users);
+    # userPrincipalName is always present and is a valid sign-in email in
+    # the vast majority of Entra ID tenants.
+    email = data.get("mail") or data.get("userPrincipalName")
+    if not email:
+        raise OAuthError("Entra ID account has no usable email (mail/userPrincipalName)")
+    return {"email": email, "name": data.get("displayName") or email.split("@")[0]}

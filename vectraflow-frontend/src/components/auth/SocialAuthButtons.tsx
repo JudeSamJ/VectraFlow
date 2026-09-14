@@ -19,6 +19,17 @@ function GitHubIcon() {
   );
 }
 
+function MicrosoftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24">
+      <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+      <rect x="13" y="1" width="10" height="10" fill="#7FBA00" />
+      <rect x="1" y="13" width="10" height="10" fill="#00A4EF" />
+      <rect x="13" y="13" width="10" height="10" fill="#FFB900" />
+    </svg>
+  );
+}
+
 export function SocialAuthButtons() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -30,7 +41,7 @@ export function SocialAuthButtons() {
         <div style={{ flex: 1, height: 1, background: 'var(--border-default)' }} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
         <a
           href={authApi.googleLoginUrl()}
           style={{
@@ -58,6 +69,20 @@ export function SocialAuthButtons() {
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
         >
           <GitHubIcon /> GitHub
+        </a>
+        <a
+          href={authApi.entraLoginUrl()}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            height: 42, borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-emphasis)', background: 'rgba(255,255,255,0.03)',
+            color: 'var(--text-primary)', fontSize: 'var(--text-sm)', fontWeight: 500,
+            textDecoration: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+        >
+          <MicrosoftIcon /> Microsoft
         </a>
       </div>
     </div>

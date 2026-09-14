@@ -18,4 +18,5 @@ export const authApi = {
   // navigation to the provider's consent screen.
   googleLoginUrl: () => `${apiBaseUrl}/auth/google/login`,
   githubLoginUrl: () => `${apiBaseUrl}/auth/github/login`,
+  entraLoginUrl: () => `${apiBaseUrl}/auth/entra/login`,
 };

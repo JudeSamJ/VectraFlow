@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: Optional[str] = None
     GITHUB_CLIENT_SECRET: Optional[str] = None
 
+    # Microsoft Entra ID (Azure AD) SSO — interactive user sign-in via the
+    # OAuth2 authorization-code flow, entirely separate from the D365 F&O
+    # connector's app-only client-credentials flow above (different app
+    # registration, different grant type; a deployment can use either,
+    # both, or neither independently). Register at
+    # portal.azure.com -> Microsoft Entra ID -> App registrations, with a
+    # redirect URI of {OAUTH_REDIRECT_BASE_URL}/api/v1/auth/entra/callback.
+    # Leave any of these unset to keep "Continue with Microsoft" disabled.
+    ENTRA_CLIENT_ID: Optional[str] = None
+    ENTRA_CLIENT_SECRET: Optional[str] = None
+    ENTRA_TENANT_ID: Optional[str] = None
+
     # Transactional email for password reset — Resend (resend.com), free tier
     # covers 3,000 emails/month. Leave unset to keep forgot-password disabled
     # (the endpoint still responds successfully — it just won't send anything
@@ -162,6 +174,10 @@ class Settings(BaseSettings):
     @property
     def d365_enabled(self) -> bool:
         return bool(self.D365_BASE_URL and self.D365_TENANT_ID and self.D365_CLIENT_ID and self.D365_CLIENT_SECRET)
+
+    @property
+    def entra_sso_enabled(self) -> bool:
+        return bool(self.ENTRA_CLIENT_ID and self.ENTRA_CLIENT_SECRET and self.ENTRA_TENANT_ID)
 
     @property
     def d365_resource_scope(self) -> str:

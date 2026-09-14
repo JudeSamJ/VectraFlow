@@ -18,7 +18,7 @@ from app.models.password_reset_token import PasswordResetToken
 from app.schemas.user import UserCreate, UserResponse, APIKeyCreate, APIKeyCreatedResponse, APIKeyResponse
 from app.schemas.token import Token
 from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, generate_api_key
-from app.services.oauth_service import exchange_google_code, exchange_github_code, OAuthError
+from app.services.oauth_service import exchange_google_code, exchange_github_code, exchange_entra_code, OAuthError
 from app.services.email_service import send_email
 
 logger = structlog.get_logger(__name__)
@@ -75,7 +75,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 # ─────────────────────────────────────────────
-# OAuth — Google / GitHub
+# OAuth — Google / GitHub / Microsoft Entra ID
 # ─────────────────────────────────────────────
 
 async def _get_or_create_oauth_user(db: AsyncSession, email: str, name: str, provider: str) -> User:
@@ -162,6 +162,37 @@ async def github_callback(code: str | None = None, error: str | None = None, db:
         user = await _get_or_create_oauth_user(db, profile["email"], profile["name"], "github")
     except OAuthError as exc:
         logger.warning("github_oauth_failed", error=str(exc))
+        return _oauth_failure_redirect(str(exc))
+    return _oauth_success_redirect(user)
+
+
+@router.get("/entra/login")
+async def entra_login():
+    if not settings.entra_sso_enabled:
+        raise HTTPException(status_code=501, detail="Microsoft sign-in is not configured on this deployment.")
+    redirect_uri = f"{settings.OAUTH_REDIRECT_BASE_URL}/api/v1/auth/entra/callback"
+    params = urlencode({
+        "client_id": settings.ENTRA_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "response_mode": "query",
+        "scope": "openid email profile User.Read",
+        "prompt": "select_account",
+    })
+    return RedirectResponse(
+        f"https://login.microsoftonline.com/{settings.ENTRA_TENANT_ID}/oauth2/v2.0/authorize?{params}"
+    )
+
+
+@router.get("/entra/callback")
+async def entra_callback(code: str | None = None, error: str | None = None, db: AsyncSession = Depends(get_db)):
+    if error or not code:
+        return _oauth_failure_redirect(error or "no_code")
+    try:
+        profile = await exchange_entra_code(code)
+        user = await _get_or_create_oauth_user(db, profile["email"], profile["name"], "entra")
+    except OAuthError as exc:
+        logger.warning("entra_oauth_failed", error=str(exc))
         return _oauth_failure_redirect(str(exc))
     return _oauth_success_redirect(user)
 
