@@ -22,7 +22,14 @@ class D365TokenProvider:
     every sync run would otherwise re-authenticate for no reason.
     """
 
-    def __init__(self, tenant_id: str, client_id: str, client_secret: str, resource_scope: str):
+    def __init__(
+        self,
+        tenant_id: str,
+        client_id: str,
+        client_secret: str,
+        resource_scope: str,
+        token_url_override: Optional[str] = None,
+    ):
         self.tenant_id = tenant_id
         self.client_id = client_id
         self.client_secret = client_secret
@@ -30,6 +37,13 @@ class D365TokenProvider:
         # e.g. "https://yourorg.operations.dynamics.com/.default" — this is
         # NOT the standard Microsoft Graph scope, it's environment-specific.
         self.resource_scope = resource_scope
+        # Testing-only escape hatch (see settings.D365_TOKEN_URL_OVERRIDE):
+        # points the token request at a mock Azure AD stand-in instead of
+        # the real login.microsoftonline.com, for exercising this connector
+        # end-to-end without a real Azure AD app registration. Never set in
+        # production — leaving it unset (the default) is what every real
+        # deployment uses.
+        self.token_url_override = token_url_override
         self._token: Optional[str] = None
         self._expires_at: float = 0.0
         self._client = httpx.AsyncClient(timeout=30.0)
@@ -38,7 +52,7 @@ class D365TokenProvider:
         if self._token and time.monotonic() < self._expires_at - 60:
             return self._token
 
-        token_url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+        token_url = self.token_url_override or f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
         try:
             response = await self._client.post(
                 token_url,

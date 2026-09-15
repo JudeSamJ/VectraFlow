@@ -100,6 +100,7 @@ async def run_d365_sync(kb_id: str, entity_name: str, max_records: Optional[int]
                     client_id=settings.D365_CLIENT_ID,
                     client_secret=settings.D365_CLIENT_SECRET,
                     resource_scope=settings.d365_resource_scope,
+                    token_url_override=settings.D365_TOKEN_URL_OVERRIDE,
                 )
                 client = D365ODataClient(base_url=settings.D365_BASE_URL, token_provider=token_provider)
                 records = await client.fetch_entity_records(

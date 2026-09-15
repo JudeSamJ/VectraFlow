@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     D365_TENANT_ID: Optional[str] = None
     D365_CLIENT_ID: Optional[str] = None
     D365_CLIENT_SECRET: Optional[str] = None
+    # Testing-only escape hatch: when set, the D365 token request goes here
+    # instead of the real https://login.microsoftonline.com/{tenant}/... —
+    # lets this whole connector (sync, citations, action layer) be
+    # exercised end-to-end against a mock D365/Azure-AD stand-in when you
+    # don't yet have a real Azure AD app registration. Leave unset in any
+    # real deployment; D365_TENANT_ID/CLIENT_ID/CLIENT_SECRET can be any
+    # placeholder values while this is set, since the mock doesn't validate them.
+    D365_TOKEN_URL_OVERRIDE: Optional[str] = None
 
     # Encryption
     ENCRYPTION_KEY: str
